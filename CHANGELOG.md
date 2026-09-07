@@ -2,6 +2,15 @@
 
 All notable changes to Snap will be documented in this file.
 
+## 0.4.1 - September 7, 2026
+
+### 🎨 Interface
+* Widened right-side tool sidebar to 480px and optimized tab spacing so all tool tabs fit cleanly without clipping.
+* Renamed "Cutout" tab in the tool sidebar to "BG Removal" for clearer feature naming.
+
+### 🏷️ Versioning
+* Bumped version to 0.4.1 across package.json, package-lock.json, Cargo.toml, and tauri.conf.json.
+
 ## 0.4.0 - September 7, 2026
 
 ### ✂️ Cutout

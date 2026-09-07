@@ -15,7 +15,7 @@ export const ToolSidebar: React.FC = () => {
     { id: "crop" as const, label: "Crop", icon: Crop },
     { id: "resize" as const, label: "Resize", icon: Scaling },
     { id: "upscale" as const, label: "Upscale", icon: Sparkles },
-    { id: "cutout" as const, label: "Cutout", icon: Scissors },
+    { id: "cutout" as const, label: "BG Removal", icon: Scissors },
     { id: "format" as const, label: "Format", icon: Sliders },
     { id: "metadata" as const, label: "Privacy", icon: Shield },
   ];
