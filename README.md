@@ -1,10 +1,12 @@
 # Snap
 
+<p align="center">
+  <img src="icon.png" alt="Snap icon" width="300" height="300">
+</p>
+
 A fast, satisfying image toolbox for the little jobs that shouldn't require opening a giant photo editor.
 
 Snap is a local-first desktop application built for cropping, resizing, converting, compressing, and stripping metadata from your images. No accounts, no cloud uploads, no subscriptions, and no complicated menus.
-
-![Snap Icon](icon.png)
 
 ## Why Snap?
 
