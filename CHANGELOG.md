@@ -2,6 +2,19 @@
 
 All notable changes to Snap will be documented in this file.
 
+## 0.5.0 - September 7, 2026
+
+### ⚡ Performance
+* Enabled hardware-accelerated CUDA GPU inference in ONNX Runtime for on-device background removal and neural upscaling.
+* Configured silent CPU fallback so systems without an NVIDIA GPU or CUDA runtime continue operating smoothly without interruption.
+
+### 🤖 Models
+* Accelerated RMBG 2.0, Lucida ONNX, BiRefNet HR Matting (2048×2048), and FeyNobg ONNX segmentation on supported GPUs.
+* Accelerated Real-ESRGAN x4plus and Real-ESRGAN Anime 6B super-resolution passes with memory-bounded tiled execution on GPU.
+
+### 🏷️ Versioning
+* Bumped version to 0.5.0 across package.json, package-lock.json, Cargo.toml, and tauri.conf.json.
+
 ## 0.4.2 - September 7, 2026
 
 ### 🎨 Interface

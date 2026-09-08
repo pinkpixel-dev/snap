@@ -22,7 +22,8 @@ Opening heavy editors like Photoshop, GIMP, or Figma just to do those quick adju
 * **Non-destructive crop & transforms:** Freeform cropping, aspect-ratio locks (1:1, 16:9, 4:3, 3:2, 9:16, 4:5), 90-degree rotations, and horizontal/vertical flips.
 * **Precise resizing:** Scale by exact pixel dimensions or percentages with aspect-ratio locking and resampling.
 * **Format conversion & compression:** Convert between WebP, PNG, and JPEG with live quality controls and before/after file size feedback.
-* **On-device AI background removal:** Isolate subjects and create transparent cutouts locally using RMBG 2.0, Lucida ONNX, BiRefNet HR Matting (2048×2048), or FeyNobg ONNX, running entirely offline with zero cloud transmission.
+* **On-device AI background removal:** Isolate subjects and create transparent cutouts locally using RMBG 2.0, Lucida ONNX, BiRefNet HR Matting (2048×2048), or FeyNobg ONNX, accelerated via NVIDIA CUDA GPU with automatic CPU fallback.
+* **AI neural upscaling:** Enhance image resolution up to 4× using Real-ESRGAN with GPU acceleration and memory-bounded tiled processing.
 * **Metadata privacy:** Inspect EXIF information and strip metadata with one click upon export.
 * **Live comparison:** Toggle between your working edits and the original image in real time.
 * **Safe exports:** Snap preserves your original image files and saves your edits to a separate destination.

@@ -226,9 +226,14 @@ impl CutoutEngine {
         let spec = Self::get_spec(model_id);
         let model_path = Self::ensure_model(model_id, hf_token)?;
 
-        // 1. Initialize ONNX runtime and session
+        // 1. Initialize ONNX runtime and session with GPU (CUDA) and CPU fallback
         let mut session = Session::builder()
             .map_err(|e| format!("Failed to create session builder: {}", e))?
+            .with_execution_providers([
+                ort::ep::CUDA::default().build(),
+                ort::ep::CPU::default().build(),
+            ])
+            .map_err(|e| format!("Failed to configure execution providers: {}", e))?
             .with_intra_threads(4)
             .map_err(|e| format!("Failed to configure intra threads: {}", e))?
             .with_inter_threads(1)
