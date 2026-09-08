@@ -135,7 +135,11 @@ interface ImageContextType {
 
   // Actions
   loadImageFromPath: (path: string) => Promise<void>;
-  loadImageFromDataUrl: (dataUrl: string, name: string) => Promise<void>;
+  loadImageFromDataUrl: (
+    dataUrl: string,
+    name: string,
+    options?: { derived?: boolean }
+  ) => Promise<void>;
   resetEdits: () => void;
   clearImage: () => void;
   setCrop: (crop: CropSettings | null) => void;
@@ -162,6 +166,14 @@ interface ImageContextType {
   ) => Promise<ExportResult>;
 }
 
+interface OriginalImage {
+  path: string | null;
+  name: string | null;
+  dataUrl: string | null;
+  metadata: ImageMetadata;
+  format: SupportedFormat;
+}
+
 const ImageContext = createContext<ImageContextType | null>(null);
 
 export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -169,6 +181,9 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [imageName, setImageName] = useState<string | null>(null);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [metadata, setMetadata] = useState<ImageMetadata | null>(null);
+  // Snapshot of the image as originally loaded, so destructive edits (Smart Select
+  // effects) can still be undone by Reset.
+  const [originalImage, setOriginalImage] = useState<OriginalImage | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -643,13 +658,26 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const resetEdits = useCallback(() => {
     if (!metadata) return;
+
+    // Destructive edits (Smart Select effects) replace the loaded image, so restore
+    // the original snapshot before clearing the non-destructive edit state.
+    const base = originalImage ?? null;
+    if (base) {
+      setImagePath(base.path);
+      setImageName(base.name);
+      setImageDataUrl(base.dataUrl);
+      setMetadata(base.metadata);
+      setFormatState(base.format);
+    }
+    const baseMeta = base ? base.metadata : metadata;
+
     setCrop(null);
     setAspectRatioModeState("free");
     setRotate(0);
     setFlipH(false);
     setFlipV(false);
-    setResizeWidthState(metadata.width);
-    setResizeHeightState(metadata.height);
+    setResizeWidthState(baseMeta.width);
+    setResizeHeightState(baseMeta.height);
     setAspectRatioLocked(true);
     setIsCutoutActive(false);
     setIsUpscaleActive(false);
@@ -664,13 +692,14 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsColorizeActive(false);
     setColorizeDataUrl(null);
     setColorizeProgress(null);
-  }, [metadata]);
+  }, [metadata, originalImage]);
 
   const clearImage = useCallback(() => {
     setImagePath(null);
     setImageName(null);
     setImageDataUrl(null);
     setMetadata(null);
+    setOriginalImage(null);
     setCrop(null);
     setRotate(0);
     setFlipH(false);
@@ -742,13 +771,21 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       // Set initial format intelligently (if source is png, stay png; else webp)
       const lowerFormat = meta.format.toLowerCase();
+      let initialFormat: SupportedFormat = "webp";
       if (lowerFormat.includes("png")) {
-        setFormatState("png");
+        initialFormat = "png";
       } else if (lowerFormat.includes("jpeg") || lowerFormat.includes("jpg")) {
-        setFormatState("jpeg");
-      } else {
-        setFormatState("webp");
+        initialFormat = "jpeg";
       }
+      setFormatState(initialFormat);
+
+      setOriginalImage({
+        path,
+        name: extractedName,
+        dataUrl: previewUrl,
+        metadata: meta,
+        format: initialFormat,
+      });
     } catch (err) {
       console.error("Failed to load image:", err);
       setError(typeof err === "string" ? err : "Failed to load image file");
@@ -757,8 +794,10 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, []);
 
-  const loadImageFromDataUrl = useCallback(async (dataUrl: string, name: string) => {
-    // For pasted clipboard or dropped canvas buffers
+  const loadImageFromDataUrl = useCallback(
+    async (dataUrl: string, name: string, options?: { derived?: boolean }) => {
+    // For pasted clipboard or dropped canvas buffers, or results of destructive edits
+    // (options.derived), which must not overwrite the original snapshot.
     setIsLoading(true);
     setError(null);
     try {
@@ -795,6 +834,15 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setIsColorizeActive(false);
         setColorizeDataUrl(null);
         setColorizeProgress(null);
+        if (!options?.derived) {
+          setOriginalImage({
+            path: null,
+            name,
+            dataUrl,
+            metadata: meta,
+            format,
+          });
+        }
         setIsLoading(false);
       };
       img.onerror = () => {
@@ -806,7 +854,9 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setError(String(err));
       setIsLoading(false);
     }
-  }, []);
+    },
+    [format]
+  );
 
   const setAspectRatioMode = useCallback((id: string) => {
     setAspectRatioModeState(id);

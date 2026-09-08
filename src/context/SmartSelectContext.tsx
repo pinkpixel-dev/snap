@@ -234,7 +234,7 @@ export const SmartSelectProvider: React.FC<{ children: React.ReactNode }> = ({ c
       });
 
       const nextName = imageName ? `${imageName.replace(/\.[^/.]+$/, "")}_edited.png` : "edited.png";
-      await loadImageFromDataUrl(resultDataUrl, nextName);
+      await loadImageFromDataUrl(resultDataUrl, nextName, { derived: true });
 
       // Clear points on success
       setPoints([]);
@@ -280,7 +280,7 @@ export const SmartSelectProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const nextName = imageName
         ? `${imageName.replace(/\.[^/.]+$/, "")}_cutout.png`
         : "cutout.png";
-      await loadImageFromDataUrl(resultDataUrl, nextName);
+      await loadImageFromDataUrl(resultDataUrl, nextName, { derived: true });
 
       // Force format to PNG to preserve alpha transparency on export
       setFormat("png");
