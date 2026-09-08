@@ -6,6 +6,7 @@ use crate::models::{CropSettings, ExportResult, ExportSettings, ImageMetadata, R
 
 pub mod cutout;
 pub mod upscale;
+pub mod sam;
 
 pub struct Pipeline;
 
@@ -493,6 +494,57 @@ impl Pipeline {
         let mut buffer = Cursor::new(Vec::new());
         upscaled_img.write_to(&mut buffer, ImageFormat::Png)
             .map_err(|e| format!("Failed to encode upscaled PNG: {}", e))?;
+
+        let base64_str = base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            buffer.get_ref(),
+        );
+
+        Ok(format!("data:image/png;base64,{}", base64_str))
+    }
+
+    pub fn is_sam_model_ready() -> bool {
+        sam::SamEngine::is_model_ready()
+    }
+
+    pub fn download_sam_model() -> Result<(), String> {
+        sam::SamEngine::download_models()
+    }
+
+    pub fn init_sam_session(source: &str, shared_state: &sam::SharedSamState) -> Result<(), String> {
+        let img = Self::load_image(source)?;
+        let cached = sam::SamEngine::encode_image(&img, source)?;
+        let mut state = shared_state.lock().map_err(|e| format!("Lock error: {}", e))?;
+        *state = Some(cached);
+        Ok(())
+    }
+
+    pub fn decode_sam_mask(
+        points: &[crate::models::PromptPoint],
+        shared_state: &sam::SharedSamState,
+    ) -> Result<crate::models::SamMaskResult, String> {
+        let mut state = shared_state.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let cached = state.as_mut().ok_or_else(|| "Smart selection session not initialized".to_string())?;
+        sam::SamEngine::decode_mask(cached, points)
+    }
+
+    pub fn apply_sam_effect(
+        source: &str,
+        settings: &crate::models::SamEffectSettings,
+        shared_state: &sam::SharedSamState,
+    ) -> Result<String, String> {
+        let mask = {
+            let state = shared_state.lock().map_err(|e| format!("Lock error: {}", e))?;
+            let cached = state.as_ref().ok_or_else(|| "Smart selection session not initialized".to_string())?;
+            cached.last_mask.clone().ok_or_else(|| "No active selection mask to apply effect to".to_string())?
+        };
+
+        let img = Self::load_image(source)?;
+        let result_img = sam::SamEngine::apply_effect(&img, &mask, settings)?;
+
+        let mut buffer = Cursor::new(Vec::new());
+        result_img.write_to(&mut buffer, ImageFormat::Png)
+            .map_err(|e| format!("Failed to encode result PNG: {}", e))?;
 
         let base64_str = base64::Engine::encode(
             &base64::engine::general_purpose::STANDARD,

@@ -86,10 +86,14 @@ const SnapWorkspace: React.FC = () => {
   );
 };
 
+import { SmartSelectProvider } from "./context/SmartSelectContext";
+
 export function App() {
   return (
     <ImageProvider>
-      <SnapWorkspace />
+      <SmartSelectProvider>
+        <SnapWorkspace />
+      </SmartSelectProvider>
     </ImageProvider>
   );
 }

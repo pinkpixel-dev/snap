@@ -119,3 +119,57 @@ pub async fn upscale_image(
     .map_err(|e| format!("Task join error: {}", e))?
 }
 
+#[tauri::command]
+pub async fn check_sam_model() -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(move || Pipeline::is_sam_model_ready())
+        .await
+        .map_err(|e| format!("Task join error: {}", e))
+}
+
+#[tauri::command]
+pub async fn download_sam_model() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || Pipeline::download_sam_model())
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+}
+
+#[tauri::command]
+pub async fn init_sam_session(
+    source: String,
+    state: tauri::State<'_, crate::pipeline::sam::SharedSamState>,
+) -> Result<(), String> {
+    let state_clone = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        Pipeline::init_sam_session(&source, &state_clone)
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}
+
+#[tauri::command]
+pub async fn decode_sam_mask(
+    points: Vec<crate::models::PromptPoint>,
+    state: tauri::State<'_, crate::pipeline::sam::SharedSamState>,
+) -> Result<crate::models::SamMaskResult, String> {
+    let state_clone = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        Pipeline::decode_sam_mask(&points, &state_clone)
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}
+
+#[tauri::command]
+pub async fn apply_sam_effect(
+    source: String,
+    settings: crate::models::SamEffectSettings,
+    state: tauri::State<'_, crate::pipeline::sam::SharedSamState>,
+) -> Result<String, String> {
+    let state_clone = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        Pipeline::apply_sam_effect(&source, &settings, &state_clone)
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}
+

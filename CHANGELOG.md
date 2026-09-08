@@ -2,6 +2,20 @@
 
 All notable changes to Snap will be documented in this file.
 
+## 0.7.0 - September 7, 2026
+
+### ✨ Smart Selection
+* Integrated Meta SlimSAM neural segmentation model (slimsam-77-uniform) for interactive point-and-click object masking on desktop and mobile.
+* Added Include and Exclude prompt point placement directly on the preview canvas with real-time visual badges and animated selection boundary previews.
+* Added native selective image adjustments including Subject Cutout, Portrait Background Blur, Color Splash, and Targeted Brightness, Contrast, and Saturation adjustments.
+
+### 🎨 Interface
+* Reorganized the sidebar tool navigation into a 4-column 2-row grid to fit all tools comfortably without widening the side panel.
+* Added descriptive accessibility titles and aria labels across all sidebar tool tabs.
+
+### 🏷️ Versioning
+* Bumped version to 0.7.0 across package.json, package-lock.json, Cargo.toml, and tauri.conf.json.
+
 ## 0.6.0 - September 7, 2026
 
 ### ⚡ Performance

@@ -37,8 +37,8 @@ interface ImageContextType {
   stripMetadata: boolean;
 
   // View State
-  activeTab: "crop" | "resize" | "upscale" | "cutout";
-  setActiveTab: (tab: "crop" | "resize" | "upscale" | "cutout") => void;
+  activeTab: "crop" | "resize" | "upscale" | "cutout" | "smart-select";
+  setActiveTab: (tab: "crop" | "resize" | "upscale" | "cutout" | "smart-select") => void;
   showCheckerboard: boolean;
   setShowCheckerboard: (val: boolean | ((prev: boolean) => boolean)) => void;
   showBeforeAfter: boolean;
@@ -145,7 +145,7 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [stripMetadata, setStripMetadata] = useState(true);
 
   // View state
-  const [activeTab, setActiveTab] = useState<"crop" | "resize" | "upscale" | "cutout">("crop");
+  const [activeTab, setActiveTab] = useState<"crop" | "resize" | "upscale" | "cutout" | "smart-select">("crop");
   const [showCheckerboard, setShowCheckerboard] = useState(false);
   const [showBeforeAfter, setShowBeforeAfter] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);

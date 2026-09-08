@@ -142,3 +142,145 @@ fn test_export_settings_upscale() {
 fn test_cuda_availability_check() {
     let _available = Pipeline::is_cuda_available();
 }
+
+#[test]
+fn test_sam_model_filenames() {
+    assert_eq!(sam::ENCODER_FILENAME, "slimsam-encoder-quantized.onnx");
+    assert_eq!(sam::DECODER_FILENAME, "slimsam-decoder-quantized.onnx");
+}
+
+#[test]
+fn test_sam_effect_cutout() {
+    use image::{DynamicImage, GrayImage, Luma, Rgba, RgbaImage};
+    let mut img = RgbaImage::new(10, 10);
+    for p in img.pixels_mut() {
+        *p = Rgba([255, 0, 0, 255]);
+    }
+    let mut mask = GrayImage::new(10, 10);
+    // Left half foreground, right half background
+    for y in 0..10 {
+        for x in 0..5 {
+            mask.put_pixel(x, y, Luma([255]));
+        }
+    }
+    let settings = crate::models::SamEffectSettings {
+        effect: "cutout".to_string(),
+        blur_radius: None,
+        invert: None,
+        target: None,
+        brightness: None,
+        contrast: None,
+        saturation: None,
+    };
+    let res = sam::SamEngine::apply_effect(&DynamicImage::ImageRgba8(img), &mask, &settings).unwrap();
+    let res_rgba = res.to_rgba8();
+    assert_eq!(res_rgba.get_pixel(2, 2)[3], 255); // foreground alpha intact
+    assert_eq!(res_rgba.get_pixel(7, 7)[3], 0);   // background alpha cut
+}
+
+#[test]
+fn test_sam_effect_color_splash() {
+    use image::{DynamicImage, GrayImage, Luma, Rgba, RgbaImage};
+    let mut img = RgbaImage::new(10, 10);
+    for p in img.pixels_mut() {
+        *p = Rgba([255, 0, 0, 255]); // pure red
+    }
+    let mut mask = GrayImage::new(10, 10);
+    // Left half foreground (color), right half background (grayscale)
+    for y in 0..10 {
+        for x in 0..5 {
+            mask.put_pixel(x, y, Luma([255]));
+        }
+    }
+    let settings = crate::models::SamEffectSettings {
+        effect: "color_splash".to_string(),
+        blur_radius: None,
+        invert: None,
+        target: None,
+        brightness: None,
+        contrast: None,
+        saturation: None,
+    };
+    let res = sam::SamEngine::apply_effect(&DynamicImage::ImageRgba8(img), &mask, &settings).unwrap();
+    let res_rgba = res.to_rgba8();
+    // Left side should remain pure red [255, 0, 0]
+    let left_px = res_rgba.get_pixel(2, 2);
+    assert_eq!(left_px[0], 255);
+    assert_eq!(left_px[1], 0);
+    // Right side should be grayscale: r == g == b (0.299 * 255 = 76)
+    let right_px = res_rgba.get_pixel(7, 7);
+    assert_eq!(right_px[0], right_px[1]);
+    assert_eq!(right_px[1], right_px[2]);
+}
+
+#[test]
+fn test_sam_effect_blur() {
+    use image::{DynamicImage, GrayImage, Luma, Rgba, RgbaImage};
+    let mut img = RgbaImage::new(20, 20);
+    for (x, y, p) in img.enumerate_pixels_mut() {
+        *p = if (x + y) % 2 == 0 { Rgba([255, 255, 255, 255]) } else { Rgba([0, 0, 0, 255]) };
+    }
+    let mut mask = GrayImage::new(20, 20);
+    // Upper half foreground (sharp), lower half background (blurred)
+    for y in 0..10 {
+        for x in 0..20 {
+            mask.put_pixel(x, y, Luma([255]));
+        }
+    }
+    let settings = crate::models::SamEffectSettings {
+        effect: "blur".to_string(),
+        blur_radius: Some(5.0),
+        invert: None,
+        target: None,
+        brightness: None,
+        contrast: None,
+        saturation: None,
+    };
+    let res = sam::SamEngine::apply_effect(&DynamicImage::ImageRgba8(img), &mask, &settings).unwrap();
+    assert_eq!(res.width(), 20);
+    assert_eq!(res.height(), 20);
+}
+
+#[test]
+fn test_sam_inference_end_to_end() {
+    if !sam::SamEngine::is_model_ready() {
+        eprintln!("SlimSAM models not downloaded; skipping live inference test");
+        return;
+    }
+    use image::{DynamicImage, Rgba, RgbaImage};
+    let mut img = RgbaImage::new(100, 100);
+    // Draw a bright red circle in the center
+    for y in 0..100 {
+        for x in 0..100 {
+            let dx = x as i32 - 50;
+            let dy = y as i32 - 50;
+            if dx * dx + dy * dy < 25 * 25 {
+                img.put_pixel(x, y, Rgba([255, 30, 30, 255]));
+            } else {
+                img.put_pixel(x, y, Rgba([20, 20, 20, 255]));
+            }
+        }
+    }
+    let dyn_img = DynamicImage::ImageRgba8(img);
+    let mut cached = sam::SamEngine::encode_image(&dyn_img, "test_circle").expect("encode_image failed");
+    assert_eq!(cached.orig_w, 100);
+    assert_eq!(cached.orig_h, 100);
+
+    // Prompt point at center (x: 0.5, y: 0.5, label: 1)
+    let points = vec![crate::models::PromptPoint {
+        x: 0.5,
+        y: 0.5,
+        label: 1,
+    }];
+    let mask_res = sam::SamEngine::decode_mask(&mut cached, &points).expect("decode_mask failed");
+    assert!(mask_res.score > 0.0, "Score should be positive: {}", mask_res.score);
+    assert!(!mask_res.mask_data_url.is_empty(), "Mask data URL should not be empty");
+    assert!(cached.last_mask.is_some(), "Last mask should be cached");
+    let mask = cached.last_mask.as_ref().unwrap();
+    assert_eq!(mask.width(), 100);
+    assert_eq!(mask.height(), 100);
+
+    // The center should be selected
+    let center_val = mask.get_pixel(50, 50)[0];
+    assert!(center_val > 100, "Center pixel should be segmented: {}", center_val);
+}

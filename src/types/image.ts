@@ -149,3 +149,25 @@ export const COMMON_ASPECT_RATIOS: AspectRatioOption[] = [
   { id: "9:16", label: "9:16", ratio: 9 / 16, description: "Story / Vertical" },
   { id: "4:5", label: "4:5", ratio: 4 / 5, description: "Instagram Portrait" },
 ];
+
+export interface PromptPoint {
+  x: number; // normalized 0.0 .. 1.0
+  y: number; // normalized 0.0 .. 1.0
+  label: number; // 1 = include, 0 = exclude
+}
+
+export interface SamMaskResult {
+  mask_data_url: string;
+  score: number;
+  bounds?: CropSettings | null;
+}
+
+export interface SamEffectSettings {
+  effect: "cutout" | "blur" | "color_splash" | "adjustments";
+  blur_radius?: number;
+  invert?: boolean;
+  target?: "subject" | "background";
+  brightness?: number;
+  contrast?: number;
+  saturation?: number;
+}

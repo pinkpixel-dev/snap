@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { useImage } from "../../context/ImageContext";
+import { useSmartSelect } from "../../context/SmartSelectContext";
 import { COMMON_ASPECT_RATIOS, CropSettings } from "../../types/image";
 import {
   ZoomIn,
@@ -47,7 +48,10 @@ export const CanvasPreview: React.FC = () => {
     setSplitSliderPos,
     isSidebarOpen,
     toggleSidebar,
+    activeTab,
   } = useImage();
+
+  const { points, mode, addPoint, maskDataUrl } = useSmartSelect();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const imageWrapperRef = useRef<HTMLDivElement>(null);
@@ -193,7 +197,7 @@ export const CanvasPreview: React.FC = () => {
 
   // Handle clicking on background to draw a new crop box
   const handleBackgroundDown = (e: React.MouseEvent<HTMLDivElement> | React.TouchEvent<HTMLDivElement>) => {
-    if (!imageDataUrl || showBeforeAfter) return;
+    if (!imageDataUrl || showBeforeAfter || activeTab !== "crop") return;
     const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
     const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
 
@@ -206,6 +210,34 @@ export const CanvasPreview: React.FC = () => {
       initialCrop: { x: coords.x, y: coords.y, width: 0, height: 0 },
     });
     setCrop({ x: coords.x, y: coords.y, width: 0, height: 0 });
+  };
+
+  const handleImagePointerDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (activeTab !== "smart-select") return;
+    if (e.button !== 0 && e.button !== 2) return;
+    e.stopPropagation();
+    e.preventDefault();
+    if (!imageWrapperRef.current) return;
+
+    const rect = imageWrapperRef.current.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+    const normX = (e.clientX - rect.left) / rect.width;
+    const normY = (e.clientY - rect.top) / rect.height;
+    const label = e.button === 2 ? 0 : mode === "include" ? 1 : 0;
+    addPoint(normX, normY, label);
+  };
+
+  const handleImageTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (activeTab !== "smart-select" || e.touches.length !== 1) return;
+    e.stopPropagation();
+    if (!imageWrapperRef.current) return;
+
+    const rect = imageWrapperRef.current.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+    const touch = e.touches[0];
+    const normX = (touch.clientX - rect.left) / rect.width;
+    const normY = (touch.clientY - rect.top) / rect.height;
+    addPoint(normX, normY);
   };
 
   // Window-level drag movement listener
@@ -528,6 +560,14 @@ export const CanvasPreview: React.FC = () => {
               width: `${sourceW * zoom}px`,
               height: `${sourceH * zoom}px`,
               userSelect: "none",
+              cursor: activeTab === "smart-select" ? "crosshair" : undefined,
+            }}
+            onMouseDown={handleImagePointerDown}
+            onTouchStart={handleImageTouchStart}
+            onContextMenu={(e) => {
+              if (activeTab === "smart-select") {
+                e.preventDefault();
+              }
             }}
           >
             {isUpscaleActive && upscaleDataUrl ? (
@@ -750,7 +790,7 @@ export const CanvasPreview: React.FC = () => {
             )}
 
             {/* Interactive Crop Rectangle Overlay */}
-            {!showBeforeAfter && crop && crop.width > 0 && crop.height > 0 && (
+            {!showBeforeAfter && activeTab === "crop" && crop && crop.width > 0 && crop.height > 0 && (
               <div
                 className="crop-box-container"
                 style={{
@@ -858,6 +898,57 @@ export const CanvasPreview: React.FC = () => {
                   {crop.width} × {crop.height} px
                 </div>
               </div>
+            )}
+
+            {/* Smart Select Live Mask Overlay & Point Markers */}
+            {activeTab === "smart-select" && (
+              <>
+                {maskDataUrl && (
+                  <img
+                    src={maskDataUrl}
+                    alt="Active Selection Mask"
+                    draggable={false}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      height: "100%",
+                      objectFit: "contain",
+                      pointerEvents: "none",
+                      zIndex: 4,
+                    }}
+                  />
+                )}
+
+                {points.map((p, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      position: "absolute",
+                      left: `${p.x * 100}%`,
+                      top: `${p.y * 100}%`,
+                      transform: "translate(-50%, -50%)",
+                      width: "18px",
+                      height: "18px",
+                      borderRadius: "50%",
+                      backgroundColor: p.label === 1 ? "#22c55e" : "#ef4444",
+                      border: "2px solid #ffffff",
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.7)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: "#ffffff",
+                      fontSize: "11px",
+                      fontWeight: 800,
+                      pointerEvents: "none",
+                      zIndex: 10,
+                    }}
+                  >
+                    {p.label === 1 ? "+" : "−"}
+                  </div>
+                ))}
+              </>
             )}
           </div>
         )}

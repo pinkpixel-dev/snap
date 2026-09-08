@@ -56,3 +56,28 @@ pub struct ExportResult {
     pub saved_percentage: f64,
     pub duration_ms: u64,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PromptPoint {
+    pub x: f32, // normalized 0.0 .. 1.0
+    pub y: f32, // normalized 0.0 .. 1.0
+    pub label: i64, // 1 = positive / include, 0 = negative / exclude
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SamMaskResult {
+    pub mask_data_url: String,
+    pub score: f32,
+    pub bounds: Option<CropSettings>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SamEffectSettings {
+    pub effect: String, // "cutout", "blur", "color_splash", "adjustments"
+    pub blur_radius: Option<f32>,
+    pub invert: Option<bool>,
+    pub target: Option<String>, // "subject" or "background"
+    pub brightness: Option<f32>, // -1.0 .. 1.0
+    pub contrast: Option<f32>, // -1.0 .. 1.0
+    pub saturation: Option<f32>, // -1.0 .. 1.0
+}
