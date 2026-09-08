@@ -40,6 +40,7 @@ interface SmartSelectContextType {
   undoPoint: () => void;
   clearPoints: () => void;
   applyActiveEffect: () => Promise<void>;
+  exportCutout: () => Promise<void>;
   cropToSelection: () => void;
 }
 
@@ -54,6 +55,8 @@ export const SmartSelectProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setActiveTab,
     setCrop,
     loadImageFromDataUrl,
+    setFormat,
+    openExportModal,
   } = useImage();
 
   const [points, setPoints] = useState<PromptPoint[]>([]);
@@ -258,6 +261,54 @@ export const SmartSelectProvider: React.FC<{ children: React.ReactNode }> = ({ c
     loadImageFromDataUrl,
   ]);
 
+  const exportCutout = useCallback(async () => {
+    const source = imagePath || imageDataUrl;
+    if (!source || !maskDataUrl) return;
+
+    setIsApplyingEffect(true);
+    try {
+      const settings: SamEffectSettings = {
+        effect: "cutout",
+        invert: invertSelection,
+      };
+
+      const resultDataUrl = await invoke<string>("apply_sam_effect", {
+        source,
+        settings,
+      });
+
+      const nextName = imageName
+        ? `${imageName.replace(/\.[^/.]+$/, "")}_cutout.png`
+        : "cutout.png";
+      await loadImageFromDataUrl(resultDataUrl, nextName);
+
+      // Force format to PNG to preserve alpha transparency on export
+      setFormat("png");
+
+      // Clear points and active mask overlay on canvas
+      setPoints([]);
+      setMaskDataUrl(null);
+      setBounds(null);
+      setScore(0);
+
+      // Trigger the export modal immediately
+      openExportModal();
+    } catch (err) {
+      console.error("Export cutout error:", err);
+    } finally {
+      setIsApplyingEffect(false);
+    }
+  }, [
+    imagePath,
+    imageDataUrl,
+    imageName,
+    maskDataUrl,
+    invertSelection,
+    loadImageFromDataUrl,
+    setFormat,
+    openExportModal,
+  ]);
+
   return (
     <SmartSelectContext.Provider
       value={{
@@ -293,6 +344,7 @@ export const SmartSelectProvider: React.FC<{ children: React.ReactNode }> = ({ c
         undoPoint,
         clearPoints,
         applyActiveEffect,
+        exportCutout,
         cropToSelection,
       }}
     >

@@ -12,6 +12,7 @@ import {
   Settings,
   Sparkles,
   AlertCircle,
+  Download,
 } from "lucide-react";
 import { CUTOUT_MODELS, CutoutModelType } from "../../../types/image";
 
@@ -32,6 +33,8 @@ export const CutoutPanel: React.FC = () => {
     imagePath,
     imageDataUrl,
     error,
+    openExportModal,
+    setFormat,
   } = useImage();
 
   const hasImage = Boolean(imagePath || imageDataUrl);
@@ -312,11 +315,14 @@ export const CutoutPanel: React.FC = () => {
 
             <button
               type="button"
-              className="btn btn-secondary"
-              onClick={restoreBackground}
+              className="btn btn-primary"
+              onClick={() => {
+                setFormat("png");
+                openExportModal();
+              }}
               style={{
                 width: "100%",
-                height: "44px",
+                height: "40px",
                 fontSize: "13px",
                 fontWeight: 500,
                 display: "flex",
@@ -324,8 +330,28 @@ export const CutoutPanel: React.FC = () => {
                 justifyContent: "center",
                 gap: "8px",
               }}
+              title="Open export modal to save the isolated cutout"
             >
-              <RotateCcw size={15} />
+              <Download size={15} />
+              <span>Export Cutout...</span>
+            </button>
+
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={restoreBackground}
+              style={{
+                width: "100%",
+                height: "38px",
+                fontSize: "12px",
+                fontWeight: 500,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px",
+              }}
+            >
+              <RotateCcw size={14} />
               <span>Restore Original Background</span>
             </button>
           </div>

@@ -8,10 +8,12 @@ All notable changes to Snap will be documented in this file.
 * Integrated Meta SlimSAM neural segmentation model (slimsam-77-uniform) for interactive point-and-click object masking on desktop and mobile.
 * Added Include and Exclude prompt point placement directly on the preview canvas with real-time visual badges and animated selection boundary previews.
 * Added native selective image adjustments including Subject Cutout, Portrait Background Blur, Color Splash, and Targeted Brightness, Contrast, and Saturation adjustments.
+* Added dedicated Export Cutout action buttons to both Smart Selection and Background Removal panels, setting PNG format and opening the export modal directly.
 
 ### 🎨 Interface
 * Reorganized the sidebar tool navigation into a 4-column 2-row grid to fit all tools comfortably without widening the side panel.
 * Added descriptive accessibility titles and aria labels across all sidebar tool tabs.
+* Removed the non-functioning Show in Folder action button from the Export Complete modal.
 
 ### 🏷️ Versioning
 * Bumped version to 0.7.0 across package.json, package-lock.json, Cargo.toml, and tauri.conf.json.

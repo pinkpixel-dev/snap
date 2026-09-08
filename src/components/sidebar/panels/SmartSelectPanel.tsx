@@ -49,6 +49,7 @@ export const SmartSelectPanel: React.FC = () => {
     undoPoint,
     clearPoints,
     applyActiveEffect,
+    exportCutout,
     cropToSelection,
   } = useSmartSelect();
 
@@ -451,32 +452,69 @@ export const SmartSelectPanel: React.FC = () => {
 
           {/* Action Trigger Buttons */}
           <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "12px" }}>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={applyActiveEffect}
-              disabled={!hasPoints || isApplyingEffect || isDecoding}
-              style={{ width: "100%", justifyContent: "center", padding: "10px" }}
-            >
-              {isApplyingEffect ? (
-                <>
-                  <Loader2 size={14} className="spin" />
-                  <span>Applying Effect...</span>
-                </>
-              ) : (
-                <>
-                  <Wand2 size={14} />
-                  <span>Apply Effect to Image</span>
-                </>
-              )}
-            </button>
+            {selectedEffect === "cutout" ? (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={exportCutout}
+                  disabled={!hasPoints || isApplyingEffect || isDecoding}
+                  style={{ width: "100%", justifyContent: "center", padding: "10px", gap: "8px" }}
+                  title="Isolate subject and open export dialog"
+                >
+                  {isApplyingEffect ? (
+                    <>
+                      <Loader2 size={14} className="spin" />
+                      <span>Preparing Cutout...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download size={14} />
+                      <span>Export Cutout...</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={applyActiveEffect}
+                  disabled={!hasPoints || isApplyingEffect || isDecoding}
+                  style={{ width: "100%", justifyContent: "center", padding: "8px", fontSize: "12px", gap: "6px" }}
+                  title="Apply cutout subject to the canvas for further editing"
+                >
+                  <Wand2 size={13} />
+                  <span>Apply to Canvas</span>
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={applyActiveEffect}
+                disabled={!hasPoints || isApplyingEffect || isDecoding}
+                style={{ width: "100%", justifyContent: "center", padding: "10px", gap: "8px" }}
+              >
+                {isApplyingEffect ? (
+                  <>
+                    <Loader2 size={14} className="spin" />
+                    <span>Applying Effect...</span>
+                  </>
+                ) : (
+                  <>
+                    <Wand2 size={14} />
+                    <span>Apply Effect to Image</span>
+                  </>
+                )}
+              </button>
+            )}
 
             {bounds && (
               <button
                 type="button"
                 className="btn btn-secondary"
                 onClick={cropToSelection}
-                style={{ width: "100%", justifyContent: "center", fontSize: "12px" }}
+                style={{ width: "100%", justifyContent: "center", fontSize: "12px", gap: "6px" }}
               >
                 <Crop size={14} />
                 <span>Crop to Subject ({bounds.width}×{bounds.height})</span>

@@ -2,13 +2,11 @@ import React, { useState } from "react";
 import { useImage } from "../../context/ImageContext";
 import { SupportedFormat } from "../../types/image";
 import { save } from "@tauri-apps/plugin-dialog";
-import { openPath } from "@tauri-apps/plugin-opener";
 import {
   Download,
   X,
   CheckCircle2,
   AlertCircle,
-  FolderOpen,
   ArrowRight,
   ShieldCheck,
   ShieldAlert,
@@ -94,16 +92,6 @@ export const ExportModal: React.FC = () => {
     } catch (err) {
       console.error("Export error:", err);
       setErrorMessage(typeof err === "string" ? err : "Export failed");
-    }
-  };
-
-  const handleOpenFolder = async () => {
-    if (!exportResult?.output_path) return;
-    try {
-      const parentDir = exportResult.output_path.replace(/[/\\][^/\\]+$/, "");
-      await openPath(parentDir);
-    } catch (err) {
-      console.warn("Could not open destination folder:", err);
     }
   };
 
@@ -593,14 +581,6 @@ export const ExportModal: React.FC = () => {
               >
                 <RotateCcw size={14} />
                 <span>Export Another</span>
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={handleOpenFolder}
-              >
-                <FolderOpen size={14} />
-                <span>Show in Folder</span>
               </button>
               <button
                 type="button"
