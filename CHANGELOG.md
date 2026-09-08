@@ -2,6 +2,20 @@
 
 All notable changes to Snap will be documented in this file.
 
+## 0.6.0 - September 7, 2026
+
+### ⚡ Performance
+* Eliminated 60-second export delay on images with background removal or upscaling by reusing processed in-memory image buffers instead of re-running CPU neural models from scratch.
+
+### 🎨 Export Modal
+* Added interactive Export Mode toggle allowing users to choose between Full (Lossless / 100% Quality) and Compressed file output.
+* Added inline format selector (WebP, PNG, JPEG) directly to the Export Modal.
+* Added interactive compression slider and quick presets (High 85%, Balanced 75%, Compact 55%) when in Compressed mode.
+* Added interactive privacy toggle to switch between metadata stripping and preservation directly from the modal.
+
+### 🏷️ Versioning
+* Bumped version to 0.6.0 across package.json, package-lock.json, Cargo.toml, and tauri.conf.json.
+
 ## 0.5.1 - September 7, 2026
 
 ### 🎨 Interface

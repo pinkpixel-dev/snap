@@ -109,7 +109,14 @@ interface ImageContextType {
   setQuality: (q: number) => void;
   setFlattenBg: (color: string) => void;
   setStripMetadata: (val: boolean) => void;
-  performExport: (destPath: string) => Promise<ExportResult>;
+  performExport: (
+    destPath: string,
+    overrides?: {
+      format?: SupportedFormat;
+      quality?: number;
+      stripMetadata?: boolean;
+    }
+  ) => Promise<ExportResult>;
 }
 
 const ImageContext = createContext<ImageContextType | null>(null);
@@ -561,67 +568,101 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setAspectRatioLocked((prev) => !prev);
   }, []);
 
-  const performExport = useCallback(async (destPath: string): Promise<ExportResult> => {
-    const source = imagePath || imageDataUrl;
-    if (!source) {
-      throw new Error("No source image available for export");
-    }
+  const performExport = useCallback(
+    async (
+      destPath: string,
+      overrides?: {
+        format?: SupportedFormat;
+        quality?: number;
+        stripMetadata?: boolean;
+      }
+    ): Promise<ExportResult> => {
+      let source: string | null = null;
+      let removeBg: boolean | undefined = undefined;
+      let cutoutM: CutoutModelType | undefined = undefined;
+      let upscaleS: 2 | 4 | undefined = undefined;
+      let upscaleM: UpscaleModelType | undefined = undefined;
 
-    setIsExporting(true);
-    try {
-      const settings: ExportSettings = {
-        crop: crop || undefined,
-        rotate: rotate !== 0 ? rotate : undefined,
-        flip_horizontal: flipH || undefined,
-        flip_vertical: flipV || undefined,
-        resize: {
-          width: resizeWidth > 0 ? resizeWidth : undefined,
-          height: resizeHeight > 0 ? resizeHeight : undefined,
-          preserve_aspect_ratio: aspectRatioLocked,
-          fit_mode: fitMode,
-        },
-        format,
-        quality: format === "png" ? undefined : quality,
-        flatten_background: format === "jpeg" ? flattenBg : undefined,
-        strip_metadata: stripMetadata,
-        remove_background: isCutoutActive || undefined,
-        cutout_model: isCutoutActive ? cutoutModel : undefined,
-        upscale_scale: isUpscaleActive ? upscaleScale : undefined,
-        upscale_model: isUpscaleActive ? upscaleModel : undefined,
-      };
+      // Prefer already-processed in-memory image buffers to prevent re-running 60s CPU neural inference
+      if (isUpscaleActive && upscaleDataUrl) {
+        source = upscaleDataUrl;
+      } else if (isCutoutActive && cutoutDataUrl) {
+        source = cutoutDataUrl;
+      } else {
+        source = imagePath || imageDataUrl;
+        removeBg = isCutoutActive || undefined;
+        cutoutM = isCutoutActive ? cutoutModel : undefined;
+        upscaleS = isUpscaleActive ? upscaleScale : undefined;
+        upscaleM = isUpscaleActive ? upscaleModel : undefined;
+      }
 
-      const result = await invoke<ExportResult>("export_image", {
-        sourcePath: source,
-        destinationPath: destPath,
-        settings,
-      });
+      if (!source) {
+        throw new Error("No source image available for export");
+      }
 
-      setExportResult(result);
-      return result;
-    } finally {
-      setIsExporting(false);
-    }
-  }, [
-    imagePath,
-    imageDataUrl,
-    crop,
-    rotate,
-    flipH,
-    flipV,
-    resizeWidth,
-    resizeHeight,
-    aspectRatioLocked,
-    fitMode,
-    format,
-    quality,
-    flattenBg,
-    stripMetadata,
-    isCutoutActive,
-    cutoutModel,
-    isUpscaleActive,
-    upscaleScale,
-    upscaleModel,
-  ]);
+      const activeFormat = overrides?.format ?? format;
+      const activeQuality = overrides?.quality ?? quality;
+      const activeStripMetadata = overrides?.stripMetadata ?? stripMetadata;
+
+      setIsExporting(true);
+      try {
+        const settings: ExportSettings = {
+          crop: crop || undefined,
+          rotate: rotate !== 0 ? rotate : undefined,
+          flip_horizontal: flipH || undefined,
+          flip_vertical: flipV || undefined,
+          resize: {
+            width: resizeWidth > 0 ? resizeWidth : undefined,
+            height: resizeHeight > 0 ? resizeHeight : undefined,
+            preserve_aspect_ratio: aspectRatioLocked,
+            fit_mode: fitMode,
+          },
+          format: activeFormat,
+          quality: activeFormat === "png" ? undefined : activeQuality,
+          flatten_background: activeFormat === "jpeg" ? flattenBg : undefined,
+          strip_metadata: activeStripMetadata,
+          remove_background: removeBg,
+          cutout_model: cutoutM,
+          upscale_scale: upscaleS,
+          upscale_model: upscaleM,
+        };
+
+        const result = await invoke<ExportResult>("export_image", {
+          sourcePath: source,
+          destinationPath: destPath,
+          settings,
+        });
+
+        setExportResult(result);
+        return result;
+      } finally {
+        setIsExporting(false);
+      }
+    },
+    [
+      imagePath,
+      imageDataUrl,
+      crop,
+      rotate,
+      flipH,
+      flipV,
+      resizeWidth,
+      resizeHeight,
+      aspectRatioLocked,
+      fitMode,
+      format,
+      quality,
+      flattenBg,
+      stripMetadata,
+      isCutoutActive,
+      cutoutDataUrl,
+      cutoutModel,
+      isUpscaleActive,
+      upscaleDataUrl,
+      upscaleScale,
+      upscaleModel,
+    ]
+  );
 
   return (
     <ImageContext.Provider

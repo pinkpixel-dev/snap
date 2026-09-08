@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useImage } from "../../context/ImageContext";
+import { SupportedFormat } from "../../types/image";
 import { save } from "@tauri-apps/plugin-dialog";
 import { openPath } from "@tauri-apps/plugin-opener";
 import {
@@ -12,6 +13,8 @@ import {
   ShieldCheck,
   ShieldAlert,
   RotateCcw,
+  Scissors,
+  Sparkles,
 } from "lucide-react";
 
 export const ExportModal: React.FC = () => {
@@ -26,14 +29,22 @@ export const ExportModal: React.FC = () => {
     resizeWidth,
     resizeHeight,
     format,
+    setFormat,
     quality,
+    setQuality,
     stripMetadata,
+    setStripMetadata,
+    isCutoutActive,
+    isUpscaleActive,
     performExport,
     isExporting,
     exportResult,
   } = useImage();
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [compressionMode, setCompressionMode] = useState<"full" | "compressed">(() => {
+    return quality >= 100 || format === "png" ? "full" : "compressed";
+  });
 
   if (!isExportModalOpen) return null;
 
@@ -71,7 +82,12 @@ export const ExportModal: React.FC = () => {
 
       if (!destPath) return; // user cancelled
 
-      await performExport(destPath);
+      const effectiveQuality = compressionMode === "full" ? 100 : (quality >= 100 ? 80 : quality);
+      await performExport(destPath, {
+        format,
+        quality: format === "png" ? undefined : effectiveQuality,
+        stripMetadata,
+      });
     } catch (err) {
       console.error("Export error:", err);
       setErrorMessage(typeof err === "string" ? err : "Export failed");
@@ -179,11 +195,195 @@ export const ExportModal: React.FC = () => {
               </div>
             </div>
           ) : (
-            /* Pre-Export Confirmation */
+            /* Pre-Export Confirmation & Mode Controls */
             <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              {/* Export Mode (Full vs Compressed) */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                    Export Mode
+                  </label>
+                  <span style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                    {compressionMode === "full" ? "100% Quality / Lossless" : "Compressed File Size"}
+                  </span>
+                </div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "6px",
+                    backgroundColor: "var(--bg-surface)",
+                    padding: "4px",
+                    borderRadius: "var(--radius-md)",
+                    border: "1px solid var(--border-subtle)",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCompressionMode("full");
+                      if (format !== "png") {
+                        setQuality(100);
+                      }
+                    }}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: "var(--radius-sm)",
+                      border: "none",
+                      backgroundColor: compressionMode === "full" ? "var(--bg-elevated)" : "transparent",
+                      color: compressionMode === "full" ? "var(--text-primary)" : "var(--text-muted)",
+                      fontWeight: compressionMode === "full" ? 600 : 400,
+                      fontSize: "12px",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      transition: "all var(--duration-fast)",
+                    }}
+                  >
+                    Full (Uncompressed)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCompressionMode("compressed");
+                      if (quality >= 100) {
+                        setQuality(80);
+                      }
+                    }}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: "var(--radius-sm)",
+                      border: "none",
+                      backgroundColor: compressionMode === "compressed" ? "var(--bg-elevated)" : "transparent",
+                      color: compressionMode === "compressed" ? "var(--text-primary)" : "var(--text-muted)",
+                      fontWeight: compressionMode === "compressed" ? 600 : 400,
+                      fontSize: "12px",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      transition: "all var(--duration-fast)",
+                    }}
+                  >
+                    Compressed
+                  </button>
+                </div>
+              </div>
+
+              {/* Target Format Quick-Picker */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label style={{ fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                  Format
+                </label>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "6px" }}>
+                  {(["webp", "png", "jpeg"] as const).map((fmt) => {
+                    const isSelected = format === fmt;
+                    return (
+                      <button
+                        key={fmt}
+                        type="button"
+                        onClick={() => {
+                          setFormat(fmt as SupportedFormat);
+                          if (fmt === "png") {
+                            setCompressionMode("full");
+                          }
+                        }}
+                        className={`btn btn-secondary ${isSelected ? "active" : ""}`}
+                        style={{
+                          height: "34px",
+                          fontSize: "12px",
+                          fontWeight: isSelected ? 600 : 500,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        {fmt.toUpperCase()}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Compression Slider & Presets (if Compressed mode) */}
+              {compressionMode === "compressed" && (
+                <div
+                  style={{
+                    padding: "12px 14px",
+                    backgroundColor: "var(--bg-surface)",
+                    borderRadius: "var(--radius-md)",
+                    border: "1px solid var(--border-subtle)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "10px",
+                  }}
+                >
+                  {format === "png" ? (
+                    <div style={{ fontSize: "12px", color: "var(--text-muted)", display: "flex", alignItems: "center", gap: "6px" }}>
+                      <CheckCircle2 size={14} color="var(--success)" />
+                      <span>PNG is lossless. Choose WebP or JPEG to apply compression.</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: "12px", color: "var(--text-secondary)" }}>Compression Quality</span>
+                        <span
+                          style={{
+                            fontFamily: "var(--font-mono)",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            color: "var(--accent-primary)",
+                          }}
+                        >
+                          {quality >= 100 ? 80 : quality}%
+                        </span>
+                      </div>
+                      <div className="slider-container" style={{ margin: "0" }}>
+                        <input
+                          type="range"
+                          className="slider-input"
+                          min={10}
+                          max={95}
+                          step={1}
+                          value={quality >= 100 ? 80 : quality}
+                          onChange={(e) => setQuality(parseInt(e.target.value, 10))}
+                        />
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "6px" }}>
+                        {[
+                          { label: "High", val: 85 },
+                          { label: "Balanced", val: 75 },
+                          { label: "Compact", val: 55 },
+                        ].map((preset) => {
+                          const isPresetActive = quality === preset.val;
+                          return (
+                            <button
+                              key={preset.val}
+                              type="button"
+                              onClick={() => setQuality(preset.val)}
+                              className={`btn btn-secondary ${isPresetActive ? "active" : ""}`}
+                              style={{
+                                fontSize: "11px",
+                                padding: "4px 8px",
+                                height: "28px",
+                                fontWeight: isPresetActive ? 600 : 400,
+                              }}
+                            >
+                              {preset.label} ({preset.val}%)
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Output Specs & Privacy Policy Card */}
               <div
                 style={{
-                  padding: "14px",
+                  padding: "12px 14px",
                   backgroundColor: "var(--bg-surface)",
                   borderRadius: "var(--radius-md)",
                   border: "1px solid var(--border-subtle)",
@@ -193,33 +393,54 @@ export const ExportModal: React.FC = () => {
                   fontSize: "12px",
                 }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "var(--text-secondary)" }}>Target Format</span>
-                  <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--accent-primary)" }}>
-                    {format.toUpperCase()} {format !== "png" ? `(${quality}% quality)` : "(Lossless)"}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ color: "var(--text-secondary)" }}>Target Specs</span>
+                  <span style={{ fontFamily: "var(--font-mono)", fontWeight: 600, color: "var(--text-primary)" }}>
+                    {format.toUpperCase()} · {compressionMode === "full" ? (format === "png" ? "Lossless" : "100% Quality") : `${quality >= 100 ? 80 : quality}% Quality`}
                   </span>
                 </div>
 
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "var(--text-secondary)" }}>Output Dimensions</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ color: "var(--text-secondary)" }}>Dimensions</span>
                   <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>
                     {finalW} × {finalH} px
                   </span>
                 </div>
 
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ color: "var(--text-secondary)" }}>Privacy Policy</span>
-                  <span
+                {(isCutoutActive || isUpscaleActive) && (
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ color: "var(--text-secondary)" }}>AI State</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: "4px", color: "var(--success)", fontSize: "11px", fontWeight: 500 }}>
+                      {isCutoutActive && <Scissors size={12} />}
+                      {isUpscaleActive && <Sparkles size={12} />}
+                      <span>{isCutoutActive ? "Cutout Applied (Fast Export)" : "Upscaled (Fast Export)"}</span>
+                    </span>
+                  </div>
+                )}
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ color: "var(--text-secondary)" }}>Privacy & Metadata</span>
+                  <button
+                    type="button"
+                    onClick={() => setStripMetadata(!stripMetadata)}
                     style={{
+                      background: "none",
+                      border: "none",
+                      padding: "2px 6px",
+                      borderRadius: "var(--radius-sm)",
+                      cursor: "pointer",
                       display: "flex",
                       alignItems: "center",
                       gap: "4px",
                       color: stripMetadata ? "var(--success)" : "var(--warning)",
+                      fontSize: "12px",
+                      fontWeight: 500,
                     }}
+                    title="Click to toggle metadata preservation"
                   >
-                    {stripMetadata ? <ShieldCheck size={13} /> : <ShieldAlert size={13} />}
-                    {stripMetadata ? "Strip Metadata" : "Preserve Metadata"}
-                  </span>
+                    {stripMetadata ? <ShieldCheck size={14} /> : <ShieldAlert size={14} />}
+                    <span>{stripMetadata ? "Strip Metadata" : "Preserve Metadata"}</span>
+                  </button>
                 </div>
               </div>
 
@@ -231,6 +452,10 @@ export const ExportModal: React.FC = () => {
                     gap: "6px",
                     color: "var(--danger)",
                     fontSize: "12px",
+                    padding: "8px 12px",
+                    backgroundColor: "var(--danger-surface)",
+                    borderRadius: "var(--radius-md)",
+                    border: "1px solid rgba(239, 68, 68, 0.3)",
                   }}
                 >
                   <AlertCircle size={14} />
