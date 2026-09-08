@@ -307,22 +307,6 @@ export const SettingsModal: React.FC = () => {
                         }}
                       >
                         <span>{model.name}</span>
-                        <span
-                          style={{
-                            fontSize: "10px",
-                            padding: "1px 6px",
-                            borderRadius: "var(--radius-sm)",
-                            backgroundColor: model.isGated
-                              ? "rgba(234, 179, 8, 0.15)"
-                              : "rgba(34, 197, 94, 0.15)",
-                            color: model.isGated
-                              ? "var(--warning)"
-                              : "var(--success)",
-                            fontWeight: 500,
-                          }}
-                        >
-                          {model.tag}
-                        </span>
                       </div>
 
                       <span

@@ -2,6 +2,15 @@
 
 All notable changes to Snap will be documented in this file.
 
+## 0.5.1 - September 7, 2026
+
+### 🎨 Interface
+* Removed gold and green model tags from background removal model buttons in the sidebar and Settings modal.
+* Moved resolution indicators (1024×1024 / 2048×2048) to the top right of each model button for a cleaner layout.
+
+### 🏷️ Versioning
+* Bumped version to 0.5.1 across package.json, package-lock.json, Cargo.toml, and tauri.conf.json.
+
 ## 0.5.0 - September 7, 2026
 
 ### ⚡ Performance

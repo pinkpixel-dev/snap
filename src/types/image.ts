@@ -76,7 +76,7 @@ export interface CutoutModelInfo {
   id: CutoutModelType;
   name: string;
   shortName: string;
-  tag: string;
+  tag?: string;
   size: string;
   resolution: string;
   isGated: boolean;
@@ -88,7 +88,6 @@ export const CUTOUT_MODELS: CutoutModelInfo[] = [
     id: "rmbg-2.0",
     name: "RMBG 2.0 (Bria AI)",
     shortName: "RMBG 2.0",
-    tag: "Studio Quality",
     size: "~350 MB",
     resolution: "1024×1024",
     isGated: true,
@@ -98,7 +97,6 @@ export const CUTOUT_MODELS: CutoutModelInfo[] = [
     id: "lucida-onnx",
     name: "Lucida ONNX",
     shortName: "Lucida",
-    tag: "Soft-Alpha",
     size: "~932 MB",
     resolution: "1024×1024",
     isGated: false,
@@ -108,7 +106,6 @@ export const CUTOUT_MODELS: CutoutModelInfo[] = [
     id: "birefnet-hr",
     name: "BiRefNet HR Matting",
     shortName: "BiRefNet HR",
-    tag: "Ultra 2K",
     size: "~932 MB",
     resolution: "2048×2048",
     isGated: false,
@@ -118,7 +115,6 @@ export const CUTOUT_MODELS: CutoutModelInfo[] = [
     id: "fey-nobg",
     name: "FeyNobg ONNX",
     shortName: "FeyNobg",
-    tag: "Production",
     size: "~1.1 GB",
     resolution: "1024×1024",
     isGated: false,

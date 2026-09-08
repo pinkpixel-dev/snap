@@ -114,38 +114,6 @@ export const CutoutPanel: React.FC = () => {
                   <span
                     style={{
                       fontSize: "9px",
-                      padding: "1px 4px",
-                      borderRadius: "var(--radius-sm)",
-                      backgroundColor: model.isGated
-                        ? "rgba(234, 179, 8, 0.15)"
-                        : "rgba(34, 197, 94, 0.15)",
-                      color: model.isGated ? "var(--warning)" : "var(--success)",
-                      fontWeight: 500,
-                    }}
-                  >
-                    {model.tag}
-                  </span>
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    width: "100%",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: "10px",
-                      color: "var(--text-muted)",
-                      fontFamily: "var(--font-mono)",
-                    }}
-                  >
-                    {model.size}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: "9px",
                       color: "var(--text-muted)",
                       fontFamily: "var(--font-mono)",
                     }}
@@ -153,6 +121,15 @@ export const CutoutPanel: React.FC = () => {
                     {model.resolution}
                   </span>
                 </div>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    color: "var(--text-muted)",
+                    fontFamily: "var(--font-mono)",
+                  }}
+                >
+                  {model.size}
+                </span>
               </button>
             );
           })}
