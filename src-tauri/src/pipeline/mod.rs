@@ -477,22 +477,19 @@ impl Pipeline {
         upscale::UpscaleEngine::ensure_model(model_id).map(|_| ())
     }
 
+    /// Upscales `source` by `scale`. `max_dim` caps the input's long edge before
+    /// inference; passing `None` feeds the source through untouched, which is what
+    /// repeat passes need so each one builds on real pixels instead of a downsample.
     pub fn upscale_preview_data_url(
         source: &str,
         model_id: Option<&str>,
         scale: u32,
         max_dim: Option<u32>,
     ) -> Result<String, String> {
-        let mut img = Self::load_image(source)?;
-        let max_d = max_dim.unwrap_or(1920);
-
-        let (w, h) = img.dimensions();
-        if w > max_d || h > max_d {
-            let scale_factor = (max_d as f64) / ((w.max(h)) as f64);
-            let target_w = ((w as f64) * scale_factor).round().max(1.0) as u32;
-            let target_h = ((h as f64) * scale_factor).round().max(1.0) as u32;
-            img = img.resize_exact(target_w, target_h, image::imageops::FilterType::Triangle);
-        }
+        let img = match max_dim {
+            Some(max_d) => Self::load_capped(source, max_d)?,
+            None => Self::load_image(source)?,
+        };
 
         let upscaled_img = upscale::UpscaleEngine::upscale(&img, model_id, scale)?;
 

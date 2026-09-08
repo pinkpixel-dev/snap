@@ -11,7 +11,11 @@ import {
   Download,
   AlertCircle,
 } from "lucide-react";
-import { UPSCALE_MODELS, UpscaleModelType } from "../../../types/image";
+import {
+  UPSCALE_MODELS,
+  UpscaleModelType,
+  UPSCALE_MAX_OUTPUT_DIM,
+} from "../../../types/image";
 
 export const UpscalePanel: React.FC = () => {
   const {
@@ -27,6 +31,7 @@ export const UpscalePanel: React.FC = () => {
     setSplitSliderPos,
     applyUpscale,
     restoreUpscale,
+    upscaleResult,
     imagePath,
     imageDataUrl,
     metadata,
@@ -47,8 +52,23 @@ export const UpscalePanel: React.FC = () => {
     ? crop.height
     : (rotate === 90 || rotate === 270 ? metadata?.width : metadata?.height) || 1;
 
-  const targetW = baseW * upscaleScale;
-  const targetH = baseH * upscaleScale;
+  // After a pass the canvas holds the upscaled image, so the next pass measures
+  // from that result rather than from the original file.
+  const currentW = upscaleResult ? upscaleResult.width : baseW;
+  const currentH = upscaleResult ? upscaleResult.height : baseH;
+
+  const targetW = currentW * upscaleScale;
+  const targetH = currentH * upscaleScale;
+
+  // The first pass caps its input at 1920px, so it can never reach the ceiling.
+  // Only a repeat pass, which runs at full resolution, can.
+  const exceedsLimit =
+    Boolean(upscaleResult) && Math.max(targetW, targetH) > UPSCALE_MAX_OUTPUT_DIM;
+  const runDisabled = !hasImage || isUpscaleLoading || exceedsLimit;
+  const runLabel = isUpscaleActive
+    ? `Upscale Again (${upscaleScale}×)`
+    : `Upscale Image (${upscaleScale}×)`;
+  const limitMessage = `A ${upscaleScale}× pass would reach ${targetW} × ${targetH}, past the ${UPSCALE_MAX_OUTPUT_DIM}px limit. Export this result and upscale that file, or switch to 2×.`;
 
   return (
     <div className="sidebar-content">
@@ -298,13 +318,13 @@ export const UpscalePanel: React.FC = () => {
             }}
           >
             <span style={{ color: "var(--text-muted)" }}>
-              {baseW} × {baseH}
+              {currentW} × {currentH}
             </span>
-            <div style={{ display: "flex", alignItems: "center", gap: "4px", color: "var(--accent-primary)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "4px", color: exceedsLimit ? "var(--error)" : "var(--accent-primary)" }}>
               <ArrowUpRight size={13} />
               <span style={{ fontWeight: 600 }}>{upscaleScale}×</span>
             </div>
-            <span style={{ color: "var(--text-primary)", fontWeight: 600 }}>
+            <span style={{ color: exceedsLimit ? "var(--error)" : "var(--text-primary)", fontWeight: 600 }}>
               {targetW} × {targetH}
             </span>
           </div>
@@ -330,83 +350,34 @@ export const UpscalePanel: React.FC = () => {
             <span>{error}</span>
           </div>
         )}
-        {isUpscaleActive ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={restoreUpscale}
-              style={{
-                width: "100%",
-                height: "38px",
-                justifyContent: "center",
-              }}
-            >
-              <RotateCcw size={14} style={{ marginRight: "6px" }} />
-              <span>Revert to Original</span>
-            </button>
-
-            {/* Split Slider Position Control */}
-            <div
-              style={{
-                marginTop: "6px",
-                padding: "10px",
-                backgroundColor: "var(--bg-surface)",
-                borderRadius: "var(--radius-md)",
-                border: "1px solid var(--border-subtle)",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  marginBottom: "6px",
-                  fontSize: "11px",
-                  color: "var(--text-muted)",
-                }}
-              >
-                <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                  <SlidersHorizontal size={12} />
-                  Before / After Split
-                </span>
-                <span style={{ fontFamily: "var(--font-mono)" }}>
-                  {Math.round(splitSliderPos)}%
-                </span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={splitSliderPos}
-                onChange={(e) => setSplitSliderPos(Number(e.target.value))}
-                style={{
-                  width: "100%",
-                  accentColor: "var(--accent-primary)",
-                  cursor: "pointer",
-                }}
-              />
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  fontSize: "9px",
-                  color: "var(--text-muted)",
-                  marginTop: "4px",
-                  textTransform: "uppercase",
-                }}
-              >
-                <span>Original (Before)</span>
-                <span>Upscaled (After)</span>
-              </div>
-            </div>
+        {exceedsLimit && !isUpscaleLoading && (
+          <div
+            style={{
+              padding: "8px 12px",
+              backgroundColor: "rgba(234, 179, 8, 0.1)",
+              border: "1px solid rgba(234, 179, 8, 0.25)",
+              borderRadius: "var(--radius-md)",
+              color: "var(--warning, #eab308)",
+              fontSize: "12px",
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "8px",
+              marginBottom: "8px",
+            }}
+          >
+            <AlertCircle size={14} style={{ marginTop: "2px", flexShrink: 0 }} />
+            <span id="upscale-limit-note">{limitMessage}</span>
           </div>
-        ) : (
+        )}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           <button
             type="button"
             className="btn btn-primary"
             onClick={applyUpscale}
-            disabled={!hasImage || isUpscaleLoading}
+            disabled={runDisabled}
+            title={exceedsLimit ? limitMessage : undefined}
+            aria-describedby={exceedsLimit ? "upscale-limit-note" : undefined}
             style={{
               width: "100%",
               height: "40px",
@@ -423,11 +394,88 @@ export const UpscalePanel: React.FC = () => {
             ) : (
               <>
                 <Sparkles size={16} style={{ marginRight: "8px" }} />
-                <span>Upscale Image ({upscaleScale}×)</span>
+                <span>{runLabel}</span>
               </>
             )}
           </button>
-        )}
+
+          {isUpscaleActive && (
+            <>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={restoreUpscale}
+                disabled={isUpscaleLoading}
+                style={{
+                  width: "100%",
+                  height: "38px",
+                  justifyContent: "center",
+                }}
+              >
+                <RotateCcw size={14} style={{ marginRight: "6px" }} />
+                <span>Revert to Original</span>
+              </button>
+
+              {/* Split Slider Position Control */}
+              <div
+                style={{
+                  marginTop: "6px",
+                  padding: "10px",
+                  backgroundColor: "var(--bg-surface)",
+                  borderRadius: "var(--radius-md)",
+                  border: "1px solid var(--border-subtle)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: "6px",
+                    fontSize: "11px",
+                    color: "var(--text-muted)",
+                  }}
+                >
+                  <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                    <SlidersHorizontal size={12} />
+                    Before / After Split
+                  </span>
+                  <span style={{ fontFamily: "var(--font-mono)" }}>
+                    {Math.round(splitSliderPos)}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={0}
+                  max={100}
+                  value={splitSliderPos}
+                  onChange={(e) => setSplitSliderPos(Number(e.target.value))}
+                  aria-label="Before and after split position"
+                  style={{
+                    width: "100%",
+                    accentColor: "var(--accent-primary)",
+                    cursor: "pointer",
+                  }}
+                />
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontSize: "9px",
+                    color: "var(--text-muted)",
+                    marginTop: "4px",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  <span>Original (Before)</span>
+                  <span>
+                    Upscaled (After){upscaleResult ? ` · ${upscaleResult.factor}× total` : ""}
+                  </span>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

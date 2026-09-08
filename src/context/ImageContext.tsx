@@ -10,6 +10,9 @@ import {
   CutoutModelType,
   CUTOUT_MODELS,
   UpscaleModelType,
+  UpscaleResult,
+  UPSCALE_MAX_OUTPUT_DIM,
+  UPSCALE_FIRST_PASS_MAX_DIM,
   RestoreModelType,
   RestoreTaskType,
   RESTORE_TASKS,
@@ -18,6 +21,17 @@ import {
   ENHANCE_MODELS,
   COLORIZE_MODEL,
 } from "../types/image";
+
+/// Reads the pixel dimensions of a data URL. Upscale results come back as
+/// base64 PNGs with no size metadata, and repeat passes need the real size to
+/// project the next one.
+const measureDataUrl = (dataUrl: string): Promise<{ width: number; height: number }> =>
+  new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    img.onerror = () => reject(new Error("Could not read the upscaled image size"));
+    img.src = dataUrl;
+  });
 
 interface ImageContextType {
   // Image Source
@@ -73,6 +87,7 @@ interface ImageContextType {
   isUpscaleLoading: boolean;
   upscaleProgress: string | null;
   upscaleDataUrl: string | null;
+  upscaleResult: UpscaleResult | null;
   isUpscaleModelReady: boolean;
   upscaleModel: UpscaleModelType;
   setUpscaleModel: (model: UpscaleModelType) => void;
@@ -244,6 +259,7 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [isUpscaleLoading, setIsUpscaleLoading] = useState(false);
   const [upscaleProgress, setUpscaleProgress] = useState<string | null>(null);
   const [upscaleDataUrl, setUpscaleDataUrl] = useState<string | null>(null);
+  const [upscaleResult, setUpscaleResult] = useState<UpscaleResult | null>(null);
   const [isUpscaleModelReady, setIsUpscaleModelReady] = useState(false);
   const [splitSliderPos, setSplitSliderPos] = useState(50);
 
@@ -403,10 +419,25 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [upscaleModel, checkUpscaleModelStatus]);
 
   const applyUpscale = useCallback(async () => {
-    const source = isRestoreActive && restoreDataUrl
-      ? restoreDataUrl
-      : (isCutoutActive && cutoutDataUrl ? cutoutDataUrl : (imagePath || imageDataUrl));
+    // A pass on top of an existing upscale chains from that result, so repeated
+    // runs compound instead of restarting from the source image every time.
+    const isRepeatPass = isUpscaleActive && Boolean(upscaleDataUrl);
+    const source = isRepeatPass
+      ? upscaleDataUrl
+      : (isRestoreActive && restoreDataUrl
+        ? restoreDataUrl
+        : (isCutoutActive && cutoutDataUrl ? cutoutDataUrl : (imagePath || imageDataUrl)));
     if (!source) return;
+
+    if (isRepeatPass && upscaleResult) {
+      const nextLongEdge = Math.max(upscaleResult.width, upscaleResult.height) * upscaleScale;
+      if (nextLongEdge > UPSCALE_MAX_OUTPUT_DIM) {
+        setError(
+          `A ${upscaleScale}× pass would go past the ${UPSCALE_MAX_OUTPUT_DIM}px limit. Export this result and upscale that file, or switch to 2×.`
+        );
+        return;
+      }
+    }
 
     setIsUpscaleLoading(true);
     setError(null);
@@ -422,15 +453,24 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
       const archLabel =
         upscaleModel === "realesrgan-x4plus-anime" ? "Real-ESRGAN Anime 6B" : "Real-ESRGAN x4plus";
-      setUpscaleProgress(`Upscaling ${upscaleScale}× with ${archLabel}...`);
+      const passVerb = isRepeatPass ? "Upscaling again" : "Upscaling";
+      setUpscaleProgress(`${passVerb} ${upscaleScale}× with ${archLabel}...`);
       const resultDataUrl = await invoke<string>("upscale_image", {
         source,
         modelId: upscaleModel,
         scale: upscaleScale,
-        maxDim: 1920,
+        // Repeat passes skip the input cap. Capping here would downsample the
+        // previous result back to 1920px and hand back the same dimensions.
+        maxDim: isRepeatPass ? null : UPSCALE_FIRST_PASS_MAX_DIM,
       });
 
+      const dims = await measureDataUrl(resultDataUrl);
       setUpscaleDataUrl(resultDataUrl);
+      setUpscaleResult({
+        width: dims.width,
+        height: dims.height,
+        factor: (isRepeatPass && upscaleResult ? upscaleResult.factor : 1) * upscaleScale,
+      });
       setIsUpscaleActive(true);
       setSplitSliderPos(50);
     } catch (err) {
@@ -440,10 +480,24 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsUpscaleLoading(false);
       setUpscaleProgress(null);
     }
-  }, [imagePath, imageDataUrl, isCutoutActive, cutoutDataUrl, isRestoreActive, restoreDataUrl, upscaleModel, upscaleScale]);
+  }, [
+    imagePath,
+    imageDataUrl,
+    isCutoutActive,
+    cutoutDataUrl,
+    isRestoreActive,
+    restoreDataUrl,
+    isUpscaleActive,
+    upscaleDataUrl,
+    upscaleResult,
+    upscaleModel,
+    upscaleScale,
+  ]);
 
   const restoreUpscale = useCallback(() => {
     setIsUpscaleActive(false);
+    setUpscaleDataUrl(null);
+    setUpscaleResult(null);
   }, []);
 
   // Switching task moves the selection to that task's default model, so the two never disagree.
@@ -682,6 +736,7 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsCutoutActive(false);
     setIsUpscaleActive(false);
     setUpscaleDataUrl(null);
+    setUpscaleResult(null);
     setUpscaleProgress(null);
     setIsRestoreActive(false);
     setRestoreDataUrl(null);
@@ -713,6 +768,7 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setCutoutProgress(null);
     setIsUpscaleActive(false);
     setUpscaleDataUrl(null);
+    setUpscaleResult(null);
     setUpscaleProgress(null);
     setIsRestoreActive(false);
     setRestoreDataUrl(null);
@@ -758,6 +814,7 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setCutoutDataUrl(null);
       setIsUpscaleActive(false);
       setUpscaleDataUrl(null);
+      setUpscaleResult(null);
       setUpscaleProgress(null);
       setIsRestoreActive(false);
       setRestoreDataUrl(null);
@@ -824,6 +881,7 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setCutoutDataUrl(null);
         setIsUpscaleActive(false);
         setUpscaleDataUrl(null);
+        setUpscaleResult(null);
         setUpscaleProgress(null);
         setIsRestoreActive(false);
         setRestoreDataUrl(null);
@@ -1092,6 +1150,7 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         isUpscaleLoading,
         upscaleProgress,
         upscaleDataUrl,
+        upscaleResult,
         isUpscaleModelReady,
         upscaleModel,
         setUpscaleModel,

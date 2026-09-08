@@ -43,6 +43,7 @@ export const CanvasPreview: React.FC = () => {
     cutoutDataUrl,
     isUpscaleActive,
     upscaleDataUrl,
+    upscaleResult,
     upscaleScale,
     isRestoreActive,
     restoreDataUrl,
@@ -70,7 +71,7 @@ export const CanvasPreview: React.FC = () => {
   const comparisonBeforeUrl =
     ((isCutoutActive && cutoutDataUrl) || imageDataUrl) ?? undefined;
   const comparisonAfterLabel = isUpscaleActive
-    ? `AFTER (UPSCALED ${upscaleScale}×)`
+    ? `AFTER (UPSCALED ${upscaleResult ? upscaleResult.factor : upscaleScale}×)`
     : isRestoreActive
       ? "AFTER (RESTORED)"
       : isEnhanceActive

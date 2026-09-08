@@ -15,7 +15,7 @@ Snap is a local-first desktop application built for editing and compressing imag
 * **Precise resizing:** Scale by exact pixel dimensions or percentages with aspect-ratio locking and resampling.
 * **Format conversion & compression:** Convert between WebP, PNG, and JPEG with live quality controls and before/after file size feedback.
 * **On-device AI background removal:** Isolate subjects and create transparent cutouts locally using RMBG 2.0, Lucida ONNX, BiRefNet HR Matting (2048×2048), or FeyNobg ONNX, accelerated via NVIDIA CUDA GPU with automatic CPU fallback.
-* **AI neural upscaling:** Enhance image resolution up to 4× using Real-ESRGAN with GPU acceleration and memory-bounded tiled processing.
+* **AI neural upscaling:** Enhance image resolution 2× or 4× using Real-ESRGAN with GPU acceleration and memory-bounded tiled processing. Run a second pass on the result to go further, up to an 8000px long edge.
 * **Low-light and exposure correction:** Rescue dark or badly exposed photos with the Illumination Adaptive Transformer. Three checkpoints (LOL-V1, LOL-V2, and Exposure Errors) and each is under half a megabyte.
 * **Black-and-white colorization:** Add color to old photos with DDColor. Only the color is predicted, so the original lightness, grain, and detail stay exactly as shot.
 * **Object removal:** Click an object in the Select tab, hit Remove, and LaMa paints over the gap with whatever belongs there. Runs on a 92.6 MB ONNX model downloaded on first use. Everything outside your selection is left exactly as it was.

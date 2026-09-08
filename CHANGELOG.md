@@ -2,6 +2,15 @@
 
 All notable changes to Snap will be documented in this file.
 
+## 0.11.0 - September 8, 2026
+
+### ✨ Repeat Upscaling
+* You can now upscale more than once. After a pass finishes, the Upscale button stays put and reads "Upscale Again", so you can keep going instead of only being able to revert.
+* Each pass builds on the previous result rather than starting over from the original file. Two 2× passes give you a real 4×.
+* Repeat passes run at full resolution. The first pass still caps its input at 1920px on the long edge, but capping a second pass would have downsampled the result you just made and handed back the same dimensions.
+* Results stop at 8000px on the long edge. When the next pass would cross that, the button disables itself and tells you why, so you do not sit through a run that eats all your memory.
+* The panel now shows the dimensions you actually have and what the next pass would produce, and the before/after split reports the cumulative scale, so three 2× passes read as 8× instead of 2×.
+
 ## 0.10.0 - September 8, 2026
 
 ### ✨ Object Removal

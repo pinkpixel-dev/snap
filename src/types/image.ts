@@ -53,6 +53,23 @@ export interface UpscaleModelInfo {
   description: string;
 }
 
+/// Ceiling on the long edge of an upscale result. Repeat passes feed their own
+/// output back in, so without a stop the tile count and PNG buffer grow without
+/// bound. A pass that would cross this is blocked in the UI before it runs.
+export const UPSCALE_MAX_OUTPUT_DIM = 8000;
+
+/// Long-edge cap applied to the source of a first upscale pass. Repeat passes
+/// skip it so they build on the previous result's real pixels.
+export const UPSCALE_FIRST_PASS_MAX_DIM = 1920;
+
+/// Dimensions and cumulative scale of the upscale currently on the canvas.
+export interface UpscaleResult {
+  width: number;
+  height: number;
+  /// Combined multiplier across every pass so far, relative to the source image.
+  factor: number;
+}
+
 export const UPSCALE_MODELS: UpscaleModelInfo[] = [
   {
     id: "realesrgan-x4plus",
