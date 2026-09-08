@@ -11,6 +11,7 @@ All notable changes to Snap will be documented in this file.
 ### ✨ Colorize
 * Added a Colorize tool that adds color to black-and-white photos with DDColor (~113 MB, downloaded on first use).
 * Only chroma is predicted. The original lightness is kept at full resolution and recombined in Lab, so grain and detail survive the pass.
+* Colorization feeds the model a neutral sRGB image rather than a raw lightness channel, and upsamples the predicted chroma with a sampler that does not clamp float values. Both were needed for the output to carry any color at all.
 
 ### 🎨 Interface
 * Added Light and Colorize sidebar tabs, filling the 4-column 2-row tool grid.

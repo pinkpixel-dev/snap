@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use image::{DynamicImage, GenericImageView, ImageBuffer, Luma, Rgba, RgbaImage};
+use image::{DynamicImage, GenericImageView, Rgba, RgbaImage};
 use ndarray::Array4;
 use ort::session::Session;
 use super::model_cache::{self, ModelSpec};
@@ -90,6 +90,50 @@ pub fn lab_to_rgb(l: f32, a: f32, b: f32) -> (f32, f32, f32) {
     )
 }
 
+/// Bilinear upsample of a single float plane.
+///
+/// `image::imageops::resize` cannot be used here: it clamps samples to the
+/// primitive's `DEFAULT_MAX_VALUE`, which is 1.0 for `f32`. Lab chroma runs to
+/// roughly plus or minus 128, so passing it through that path silently flattens
+/// the color to nothing and the picture comes back grey.
+pub fn upsample_plane(src: &[f32], src_w: u32, src_h: u32, dst_w: u32, dst_h: u32) -> Vec<f32> {
+    let mut out = vec![0.0f32; (dst_w * dst_h) as usize];
+    if src_w == 0 || src_h == 0 {
+        return out;
+    }
+
+    let x_ratio = src_w as f32 / dst_w as f32;
+    let y_ratio = src_h as f32 / dst_h as f32;
+    let max_x = src_w - 1;
+    let max_y = src_h - 1;
+
+    for y in 0..dst_h {
+        // Sample at pixel centres so the edges do not drift half a pixel.
+        let sy = ((y as f32 + 0.5) * y_ratio - 0.5).max(0.0);
+        let y0 = (sy.floor() as u32).min(max_y);
+        let y1 = (y0 + 1).min(max_y);
+        let wy = sy - y0 as f32;
+
+        for x in 0..dst_w {
+            let sx = ((x as f32 + 0.5) * x_ratio - 0.5).max(0.0);
+            let x0 = (sx.floor() as u32).min(max_x);
+            let x1 = (x0 + 1).min(max_x);
+            let wx = sx - x0 as f32;
+
+            let p00 = src[(y0 * src_w + x0) as usize];
+            let p01 = src[(y0 * src_w + x1) as usize];
+            let p10 = src[(y1 * src_w + x0) as usize];
+            let p11 = src[(y1 * src_w + x1) as usize];
+
+            let top = p00 + (p01 - p00) * wx;
+            let bottom = p10 + (p11 - p10) * wx;
+            out[(y * dst_w + x) as usize] = top + (bottom - top) * wy;
+        }
+    }
+
+    out
+}
+
 pub struct ColorizeEngine;
 
 impl ColorizeEngine {
@@ -157,8 +201,11 @@ impl ColorizeEngine {
             }
         }
 
-        // The model is fed the greyscale lightness at 256x256, repeated across
-        // three channels, in Lab's native 0..100 range rather than 0..1.
+        // DDColor takes a neutral RGB image in 0..1, not a raw lightness channel.
+        // The source is resized to 256x256, reduced to its Lab lightness with the
+        // chroma zeroed, then converted back to sRGB. Feeding L in its native
+        // 0..100 range instead puts the input two orders of magnitude out of
+        // range and the model answers with essentially no color at all.
         let small = image::imageops::resize(
             &rgb,
             MODEL_SIZE,
@@ -170,11 +217,15 @@ impl ColorizeEngine {
         for y in 0..MODEL_SIZE {
             for x in 0..MODEL_SIZE {
                 let p = small.get_pixel(x, y);
-                let gray = (0.299 * p[0] as f32 + 0.587 * p[1] as f32 + 0.114 * p[2] as f32) / 255.0;
-                let (l, _, _) = rgb_to_lab(gray, gray, gray);
-                for c in 0..3 {
-                    input_array[[0, c, y as usize, x as usize]] = l;
-                }
+                let (l, _, _) = rgb_to_lab(
+                    p[0] as f32 / 255.0,
+                    p[1] as f32 / 255.0,
+                    p[2] as f32 / 255.0,
+                );
+                let (r, g, b) = lab_to_rgb(l, 0.0, 0.0);
+                input_array[[0, 0, y as usize, x as usize]] = r;
+                input_array[[0, 1, y as usize, x as usize]] = g;
+                input_array[[0, 2, y as usize, x as usize]] = b;
             }
         }
 
@@ -199,25 +250,20 @@ impl ColorizeEngine {
         let out_w = shape[3] as u32;
         let plane = (out_w * out_h) as usize;
 
-        let mut a_small: ImageBuffer<Luma<f32>, Vec<f32>> = ImageBuffer::new(out_w, out_h);
-        let mut b_small: ImageBuffer<Luma<f32>, Vec<f32>> = ImageBuffer::new(out_w, out_h);
-        for y in 0..out_h {
-            for x in 0..out_w {
-                let idx = (y * out_w + x) as usize;
-                a_small.put_pixel(x, y, Luma([data.get(idx).copied().unwrap_or(0.0)]));
-                b_small.put_pixel(x, y, Luma([data.get(idx + plane).copied().unwrap_or(0.0)]));
-            }
-        }
+        let a_small: Vec<f32> = (0..plane).map(|i| data.get(i).copied().unwrap_or(0.0)).collect();
+        let b_small: Vec<f32> = (0..plane)
+            .map(|i| data.get(i + plane).copied().unwrap_or(0.0))
+            .collect();
 
-        let a_full = image::imageops::resize(&a_small, w, h, image::imageops::FilterType::Triangle);
-        let b_full = image::imageops::resize(&b_small, w, h, image::imageops::FilterType::Triangle);
+        let a_full = upsample_plane(&a_small, out_w, out_h, w, h);
+        let b_full = upsample_plane(&b_small, out_w, out_h, w, h);
 
         let mut out_rgb = image::RgbImage::new(w, h);
         for y in 0..h {
             for x in 0..w {
                 let l = orig_l[(y * w + x) as usize];
-                let a = a_full.get_pixel(x, y)[0];
-                let b = b_full.get_pixel(x, y)[0];
+                let a = a_full[(y * w + x) as usize];
+                let b = b_full[(y * w + x) as usize];
                 let (r, g, bl) = lab_to_rgb(l, a, b);
                 out_rgb.put_pixel(
                     x,

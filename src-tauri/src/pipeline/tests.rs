@@ -477,12 +477,45 @@ fn colorize_ddcolor_roundtrip() {
     let out = colorize::ColorizeEngine::colorize(&input).expect("colorize failed");
     assert_eq!(out.dimensions(), (320, 200));
 
-    // Colorization must introduce chroma the greyscale source did not have.
+    // Colorization must introduce chroma the greyscale source did not have, and
+    // enough of it to actually see. A wrongly scaled model input still produces a
+    // few off-by-one channel values, so a bare "not identical" check passes while
+    // the picture stays grey.
     let out_rgb = out.to_rgb8();
+    let peak_spread = out_rgb
+        .pixels()
+        .map(|p| {
+            let max = p[0].max(p[1]).max(p[2]) as i32;
+            let min = p[0].min(p[1]).min(p[2]) as i32;
+            max - min
+        })
+        .max()
+        .unwrap_or(0);
     assert!(
-        out_rgb.pixels().any(|p| p[0] != p[1] || p[1] != p[2]),
-        "colorized output should not still be greyscale"
+        peak_spread > 8,
+        "colorized output is still effectively greyscale (peak channel spread {})",
+        peak_spread
     );
+}
+
+/// The model input is a neutral sRGB image in 0..1, not a raw 0..100 lightness
+/// channel. Getting this wrong is silent: inference succeeds and returns almost
+/// no chroma, so the check is on the construction itself.
+#[test]
+fn test_colorize_input_is_neutral_srgb() {
+    for (r, g, b) in [(0u8, 0u8, 0u8), (40, 90, 200), (255, 255, 255), (130, 130, 130)] {
+        let (rf, gf, bf) = (r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0);
+        let (l, _, _) = colorize::rgb_to_lab(rf, gf, bf);
+        let (nr, ng, nb) = colorize::lab_to_rgb(l, 0.0, 0.0);
+
+        assert!((0.0..=1.0).contains(&nr), "model input must stay in 0..1, got {}", nr);
+        assert!((nr - ng).abs() < 0.002 && (ng - nb).abs() < 0.002, "input must be neutral grey");
+
+        // Zeroing the chroma must not disturb the lightness it carries.
+        let (l_back, a_back, b_back) = colorize::rgb_to_lab(nr, ng, nb);
+        assert!((l_back - l).abs() < 0.05, "lightness drifted: {} vs {}", l_back, l);
+        assert!(a_back.abs() < 0.02 && b_back.abs() < 0.02);
+    }
 }
 
 /// The Lab helpers are the risky part of colorization, so they get a direct check.
@@ -502,3 +535,23 @@ fn test_lab_round_trip_preserves_color() {
     assert!(a.abs() < 0.01 && b.abs() < 0.01, "grey should have no chroma, got a={} b={}", a, b);
     assert!(l > 45.0 && l < 60.0, "mid grey lightness out of range: {}", l);
 }
+
+/// Chroma planes carry values far outside 0..1, and the obvious image-crate
+/// resize clamps them away. This pins the sampler that replaced it.
+#[test]
+fn test_chroma_upsample_keeps_out_of_range_values() {
+    let src = vec![-45.0f32, 60.0, 12.0, -80.0];
+    let out = colorize::upsample_plane(&src, 2, 2, 8, 8);
+
+    assert_eq!(out.len(), 64);
+
+    let min = out.iter().cloned().fold(f32::INFINITY, f32::min);
+    let max = out.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+    assert!(min < -40.0, "negative chroma was clipped away, min was {}", min);
+    assert!(max > 50.0, "large chroma was clipped away, max was {}", max);
+
+    // Corners keep their source values, so the plane is not shifted.
+    assert!((out[0] - (-45.0)).abs() < 0.001, "top-left corner drifted: {}", out[0]);
+    assert!((out[63] - (-80.0)).abs() < 0.001, "bottom-right corner drifted: {}", out[63]);
+}
+
