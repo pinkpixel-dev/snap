@@ -4,19 +4,9 @@
   <img src="icon.png" alt="Snap icon" width="300" height="300">
 </p>
 
-A fast, satisfying image toolbox for the little jobs that shouldn't require opening a giant photo editor.
+A little image toolbox.
 
-Snap is a local-first desktop application built for cropping, resizing, converting, compressing, and stripping metadata from your images. No accounts, no cloud uploads, no subscriptions, and no complicated menus.
-
-## Why Snap?
-
-Most everyday image tasks are simple:
-* You need a photo cropped to a square or 16:9 ratio.
-* You need to resize a 4000px camera export down to 1200px for a blog post.
-* You need to turn a heavy PNG into a light WebP without losing visual quality.
-* You want to wipe private location or camera metadata before sharing a file.
-
-Opening heavy editors like Photoshop, GIMP, or Figma just to do those quick adjustments feels tedious. Online converters are convenient, but uploading personal pictures to unknown servers is not ideal. Snap runs completely on your machine using a native Rust engine, giving you instant results while keeping your files private.
+Snap is a local-first desktop application built for editing and compressing images.
 
 ## Features
 
