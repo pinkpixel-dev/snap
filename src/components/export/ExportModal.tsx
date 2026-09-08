@@ -38,6 +38,8 @@ export const ExportModal: React.FC = () => {
     isCutoutActive,
     isUpscaleActive,
     isRestoreActive,
+    isEnhanceActive,
+    isColorizeActive,
     performExport,
     isExporting,
     exportResult,
@@ -533,18 +535,24 @@ export const ExportModal: React.FC = () => {
                   </span>
                 </div>
 
-                {(isCutoutActive || isUpscaleActive || isRestoreActive) && (
+                {(isCutoutActive || isUpscaleActive || isRestoreActive || isEnhanceActive || isColorizeActive) && (
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{ color: "var(--text-secondary)" }}>AI State</span>
                     <span style={{ display: "flex", alignItems: "center", gap: "4px", color: "var(--success)", fontSize: "11px", fontWeight: 500 }}>
                       {isCutoutActive && <Scissors size={12} />}
-                      {(isUpscaleActive || isRestoreActive) && <Sparkles size={12} />}
+                      {(isUpscaleActive || isRestoreActive || isEnhanceActive || isColorizeActive) && (
+                        <Sparkles size={12} />
+                      )}
                       <span>
                         {isCutoutActive
                           ? "Cutout Applied (Fast Export)"
                           : isUpscaleActive
                             ? "Upscaled (Fast Export)"
-                            : "Restored (Fast Export)"}
+                            : isRestoreActive
+                              ? "Restored (Fast Export)"
+                              : isEnhanceActive
+                                ? "Enhanced (Fast Export)"
+                                : "Colorized (Fast Export)"}
                       </span>
                     </span>
                   </div>

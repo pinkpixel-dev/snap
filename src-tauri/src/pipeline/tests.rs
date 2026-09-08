@@ -408,3 +408,97 @@ fn restore_nafnet_roundtrip() {
     let out = restore::RestoreEngine::restore(&input, Some("nafnet-reds")).expect("restore failed");
     assert_eq!(out.dimensions(), (300, 210));
 }
+
+#[test]
+fn test_enhance_model_specs() {
+    let v2 = enhance::EnhanceEngine::get_spec(Some("iat-lol-v2"));
+    assert_eq!(v2.id, "iat-lol-v2");
+    assert_eq!(v2.filename, "iat_lol_v2.onnx");
+    assert_eq!(v2.companions.len(), 1);
+    assert_eq!(v2.companions[0].0, "iat_lol_v2.onnx.data");
+
+    let v1 = enhance::EnhanceEngine::get_spec(Some("iat-lol-v1"));
+    assert_eq!(v1.id, "iat-lol-v1");
+
+    let exposure = enhance::EnhanceEngine::get_spec(Some("iat-exposure"));
+    assert_eq!(exposure.id, "iat-exposure");
+
+    assert_eq!(enhance::EnhanceEngine::get_spec(None).id, "iat-lol-v2");
+    assert_eq!(colorize::ColorizeEngine::get_spec().id, "ddcolor");
+}
+
+/// IAT is an external-data export, so this also proves the companion `.onnx.data`
+/// file is found next to the graph. Ignored by default; needs cached weights.
+#[test]
+#[ignore]
+fn enhance_iat_roundtrip() {
+    if !enhance::EnhanceEngine::is_model_ready(Some("iat-lol-v2")) {
+        panic!("iat_lol_v2.onnx is not cached; download it before running this test");
+    }
+
+    // A deliberately dark image, which is what the low-light model is for.
+    let mut src = image::RgbaImage::new(240, 180);
+    for (x, y, px) in src.enumerate_pixels_mut() {
+        let v = (((x + y) % 40) / 2) as u8;
+        *px = image::Rgba([v, v.saturating_add(3), v.saturating_add(6), 200]);
+    }
+    let input = image::DynamicImage::ImageRgba8(src.clone());
+
+    let out = enhance::EnhanceEngine::enhance(&input, Some("iat-lol-v2")).expect("enhance failed");
+    assert_eq!(out.dimensions(), (240, 180));
+
+    let out_rgba = out.to_rgba8();
+    assert!(out_rgba.pixels().all(|p| p[3] == 200));
+
+    // The whole point is that the result is brighter than the input.
+    let mean = |img: &image::RgbaImage| -> f64 {
+        let sum: f64 = img.pixels().map(|p| (p[0] as f64 + p[1] as f64 + p[2] as f64) / 3.0).sum();
+        sum / img.pixels().len() as f64
+    };
+    assert!(mean(&out_rgba) > mean(&src), "enhanced image should be brighter than the dark source");
+}
+
+/// Real DDColor inference plus the Lab round trip. Ignored by default.
+#[test]
+#[ignore]
+fn colorize_ddcolor_roundtrip() {
+    if !colorize::ColorizeEngine::is_model_ready() {
+        panic!("ddcolor-fp16.onnx is not cached; download it before running this test");
+    }
+
+    // Greyscale content at a non-square, non-256 size.
+    let mut src = image::RgbImage::new(320, 200);
+    for (x, y, px) in src.enumerate_pixels_mut() {
+        let v = (((x / 4 + y / 6) % 200) + 30) as u8;
+        *px = image::Rgb([v, v, v]);
+    }
+    let input = image::DynamicImage::ImageRgb8(src.clone());
+
+    let out = colorize::ColorizeEngine::colorize(&input).expect("colorize failed");
+    assert_eq!(out.dimensions(), (320, 200));
+
+    // Colorization must introduce chroma the greyscale source did not have.
+    let out_rgb = out.to_rgb8();
+    assert!(
+        out_rgb.pixels().any(|p| p[0] != p[1] || p[1] != p[2]),
+        "colorized output should not still be greyscale"
+    );
+}
+
+/// The Lab helpers are the risky part of colorization, so they get a direct check.
+#[test]
+fn test_lab_round_trip_preserves_color() {
+    for (r, g, b) in [(0u8, 0u8, 0u8), (255, 255, 255), (128, 64, 200), (10, 200, 90), (245, 130, 30)] {
+        let (rf, gf, bf) = (r as f32 / 255.0, g as f32 / 255.0, b as f32 / 255.0);
+        let (l, a, bb) = colorize::rgb_to_lab(rf, gf, bf);
+        let (r2, g2, b2) = colorize::lab_to_rgb(l, a, bb);
+        assert!((r2 - rf).abs() < 0.005, "red drifted for {:?}: {} vs {}", (r, g, b), r2, rf);
+        assert!((g2 - gf).abs() < 0.005, "green drifted for {:?}", (r, g, b));
+        assert!((b2 - bf).abs() < 0.005, "blue drifted for {:?}", (r, g, b));
+    }
+
+    // Neutral greys must land on L only, with no chroma.
+    let (l, a, b) = colorize::rgb_to_lab(0.5, 0.5, 0.5);
+    assert!(a.abs() < 0.01 && b.abs() < 0.01, "grey should have no chroma, got a={} b={}", a, b);
+    assert!(l > 45.0 && l < 60.0, "mid grey lightness out of range: {}", l);
+}

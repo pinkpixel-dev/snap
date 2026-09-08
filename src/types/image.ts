@@ -165,6 +165,58 @@ export const RESTORE_MODELS: RestoreModelInfo[] = [
   },
 ];
 
+export type EnhanceModelType = "iat-lol-v2" | "iat-lol-v1" | "iat-exposure";
+
+export interface EnhanceModelInfo {
+  id: EnhanceModelType;
+  name: string;
+  shortName: string;
+  tag: string;
+  size: string;
+  description: string;
+}
+
+export const ENHANCE_MODELS: EnhanceModelInfo[] = [
+  {
+    id: "iat-lol-v2",
+    name: "IAT Low Light V2",
+    shortName: "Low Light V2",
+    tag: "Default",
+    size: "~0.4 MB",
+    description: "Trained on LOL-V2. Lifts dark and underexposed photos while keeping colors natural. The best starting point for night and indoor shots.",
+  },
+  {
+    id: "iat-lol-v1",
+    name: "IAT Low Light V1",
+    shortName: "Low Light V1",
+    tag: "Alt",
+    size: "~0.4 MB",
+    description: "Trained on LOL-V1. An earlier low-light checkpoint that sometimes suits a photo better than V2. Worth trying when V2 overdoes it.",
+  },
+  {
+    id: "iat-exposure",
+    name: "IAT Exposure",
+    shortName: "Exposure",
+    tag: "Over / under",
+    size: "~0.4 MB",
+    description: "Trained on the Exposure Errors set. Corrects both blown-out and underexposed images rather than only brightening.",
+  },
+];
+
+export interface ColorizeModelInfo {
+  id: string;
+  name: string;
+  size: string;
+  description: string;
+}
+
+export const COLORIZE_MODEL: ColorizeModelInfo = {
+  id: "ddcolor",
+  name: "DDColor",
+  size: "~113 MB",
+  description: "Predicts color for black-and-white photos. Lightness stays exactly as shot and only the color is generated, so detail and grain survive the pass.",
+};
+
 export type CutoutModelType = "rmbg-2.0" | "lucida-onnx" | "birefnet-hr" | "fey-nobg";
 
 export interface CutoutModelInfo {

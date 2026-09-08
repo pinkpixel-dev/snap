@@ -2,6 +2,27 @@
 
 All notable changes to Snap will be documented in this file.
 
+## 0.9.0 - September 7, 2026
+
+### ✨ Light & Exposure
+* Added a Light tool that brightens dark photos and corrects bad exposure using the Illumination Adaptive Transformer, running locally with CUDA acceleration and CPU fallback.
+* Added three IAT checkpoints: Low Light V2 (default), Low Light V1, and Exposure. Each is around 0.4 MB, so switching between them is effectively free.
+
+### ✨ Colorize
+* Added a Colorize tool that adds color to black-and-white photos with DDColor (~113 MB, downloaded on first use).
+* Only chroma is predicted. The original lightness is kept at full resolution and recombined in Lab, so grain and detail survive the pass.
+
+### 🎨 Interface
+* Added Light and Colorize sidebar tabs, filling the 4-column 2-row tool grid.
+* Both tools use the same before/after split preview, stack on the current result, and export from the already-processed buffer instead of re-running inference.
+
+### 🧹 Maintenance
+* `ModelSpec` now supports companion files, so ONNX external-data exports can fetch their sidecar `.onnx.data` weights alongside the graph.
+* Extracted the shared model-tool panel layout into `AiToolPanel`, used by the two new panels.
+
+### 🏷️ Versioning
+* Bumped version to 0.9.0 across package.json, package-lock.json, Cargo.toml, and tauri.conf.json.
+
 ## 0.8.0 - September 7, 2026
 
 ### ✨ Image Restoration

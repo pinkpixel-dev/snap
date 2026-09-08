@@ -12,6 +12,7 @@ pub const REAL_ESRGAN_X4PLUS_SPEC: ModelSpec = ModelSpec {
     fallback_url: Some("https://huggingface.co/universonic/RealESRGAN/resolve/main/RealESRGAN_x4plus_fp32.onnx"),
     candidates: &["RealESRGAN_x4plus.onnx", "realesrgan-x4plus.onnx", "RealESRGAN_x4plus_fp32.onnx"],
     min_size: 50_000_000,
+    companions: &[],
 };
 
 pub const REAL_ESRGAN_X4PLUS_ANIME_SPEC: ModelSpec = ModelSpec {
@@ -21,6 +22,7 @@ pub const REAL_ESRGAN_X4PLUS_ANIME_SPEC: ModelSpec = ModelSpec {
     fallback_url: Some("https://huggingface.co/universonic/RealESRGAN/resolve/main/RealESRGAN_x4plus_anime_6B_fp32.onnx"),
     candidates: &["RealESRGAN_x4plus_anime_6B.onnx", "realesrgan-x4plus-anime.onnx", "RealESRGAN_x4plus_anime_6B_fp32.onnx"],
     min_size: 15_000_000,
+    companions: &[],
 };
 
 pub struct UpscaleEngine;

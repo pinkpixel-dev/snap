@@ -8,6 +8,8 @@ pub mod cutout;
 pub mod model_cache;
 pub mod upscale;
 pub mod restore;
+pub mod enhance;
+pub mod colorize;
 pub mod sam;
 
 pub struct Pipeline;
@@ -534,6 +536,67 @@ impl Pipeline {
         let mut buffer = Cursor::new(Vec::new());
         restored_img.write_to(&mut buffer, ImageFormat::Png)
             .map_err(|e| format!("Failed to encode restored PNG: {}", e))?;
+
+        let base64_str = base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            buffer.get_ref(),
+        );
+
+        Ok(format!("data:image/png;base64,{}", base64_str))
+    }
+
+    pub fn is_enhance_model_ready(model_id: Option<&str>) -> bool {
+        enhance::EnhanceEngine::is_model_ready(model_id)
+    }
+
+    pub fn download_enhance_model(model_id: Option<&str>) -> Result<(), String> {
+        enhance::EnhanceEngine::ensure_model(model_id).map(|_| ())
+    }
+
+    pub fn enhance_preview_data_url(
+        source: &str,
+        model_id: Option<&str>,
+        max_dim: Option<u32>,
+    ) -> Result<String, String> {
+        let img = Self::load_capped(source, max_dim.unwrap_or(2048))?;
+        let enhanced = enhance::EnhanceEngine::enhance(&img, model_id)?;
+        Self::encode_png_data_url(&enhanced, "enhanced")
+    }
+
+    pub fn is_colorize_model_ready() -> bool {
+        colorize::ColorizeEngine::is_model_ready()
+    }
+
+    pub fn download_colorize_model() -> Result<(), String> {
+        colorize::ColorizeEngine::ensure_model().map(|_| ())
+    }
+
+    pub fn colorize_preview_data_url(
+        source: &str,
+        max_dim: Option<u32>,
+    ) -> Result<String, String> {
+        let img = Self::load_capped(source, max_dim.unwrap_or(2048))?;
+        let colorized = colorize::ColorizeEngine::colorize(&img)?;
+        Self::encode_png_data_url(&colorized, "colorized")
+    }
+
+    /// Loads a source image and scales it down when either side exceeds `max_dim`.
+    fn load_capped(source: &str, max_dim: u32) -> Result<DynamicImage, String> {
+        let mut img = Self::load_image(source)?;
+        let (w, h) = img.dimensions();
+        if w > max_dim || h > max_dim {
+            let factor = (max_dim as f64) / (w.max(h) as f64);
+            let target_w = ((w as f64) * factor).round().max(1.0) as u32;
+            let target_h = ((h as f64) * factor).round().max(1.0) as u32;
+            img = img.resize_exact(target_w, target_h, image::imageops::FilterType::Lanczos3);
+        }
+        Ok(img)
+    }
+
+    fn encode_png_data_url(img: &DynamicImage, label: &str) -> Result<String, String> {
+        let mut buffer = Cursor::new(Vec::new());
+        img.write_to(&mut buffer, ImageFormat::Png)
+            .map_err(|e| format!("Failed to encode {} PNG: {}", label, e))?;
 
         let base64_str = base64::Engine::encode(
             &base64::engine::general_purpose::STANDARD,

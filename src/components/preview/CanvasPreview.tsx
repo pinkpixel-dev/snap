@@ -46,6 +46,10 @@ export const CanvasPreview: React.FC = () => {
     upscaleScale,
     isRestoreActive,
     restoreDataUrl,
+    isEnhanceActive,
+    enhanceDataUrl,
+    isColorizeActive,
+    colorizeDataUrl,
     splitSliderPos,
     setSplitSliderPos,
     isSidebarOpen,
@@ -57,15 +61,21 @@ export const CanvasPreview: React.FC = () => {
 
   // Upscale and restore both render as a before/after split. Upscale sits downstream
   // of restore, so when both are active the restored image is the "before" side.
-  const comparisonAfterUrl = isUpscaleActive && upscaleDataUrl
-    ? upscaleDataUrl
-    : (isRestoreActive && restoreDataUrl ? restoreDataUrl : null);
-  const comparisonBeforeUrl = isUpscaleActive && isRestoreActive && restoreDataUrl
-    ? restoreDataUrl
-    : (isCutoutActive && cutoutDataUrl ? cutoutDataUrl : imageDataUrl) ?? undefined;
+  const comparisonAfterUrl =
+    (isUpscaleActive && upscaleDataUrl) ||
+    (isRestoreActive && restoreDataUrl) ||
+    (isEnhanceActive && enhanceDataUrl) ||
+    (isColorizeActive && colorizeDataUrl) ||
+    null;
+  const comparisonBeforeUrl =
+    ((isCutoutActive && cutoutDataUrl) || imageDataUrl) ?? undefined;
   const comparisonAfterLabel = isUpscaleActive
     ? `AFTER (UPSCALED ${upscaleScale}×)`
-    : "AFTER (RESTORED)";
+    : isRestoreActive
+      ? "AFTER (RESTORED)"
+      : isEnhanceActive
+        ? "AFTER (ENHANCED)"
+        : "AFTER (COLORIZED)";
 
   const containerRef = useRef<HTMLDivElement>(null);
   const imageWrapperRef = useRef<HTMLDivElement>(null);

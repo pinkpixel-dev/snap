@@ -149,6 +149,58 @@ pub async fn restore_image(
 }
 
 #[tauri::command]
+pub async fn check_enhance_model(model_id: Option<String>) -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(move || Pipeline::is_enhance_model_ready(model_id.as_deref()))
+        .await
+        .map_err(|e| format!("Task join error: {}", e))
+}
+
+#[tauri::command]
+pub async fn download_enhance_model(model_id: Option<String>) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        Pipeline::download_enhance_model(model_id.as_deref())
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}
+
+#[tauri::command]
+pub async fn enhance_image(
+    source: String,
+    model_id: Option<String>,
+    max_dim: Option<u32>,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        Pipeline::enhance_preview_data_url(&source, model_id.as_deref(), max_dim)
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}
+
+#[tauri::command]
+pub async fn check_colorize_model() -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(Pipeline::is_colorize_model_ready)
+        .await
+        .map_err(|e| format!("Task join error: {}", e))
+}
+
+#[tauri::command]
+pub async fn download_colorize_model() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(Pipeline::download_colorize_model)
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+}
+
+#[tauri::command]
+pub async fn colorize_image(source: String, max_dim: Option<u32>) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        Pipeline::colorize_preview_data_url(&source, max_dim)
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}
+
+#[tauri::command]
 pub async fn check_sam_model() -> Result<bool, String> {
     tauri::async_runtime::spawn_blocking(move || Pipeline::is_sam_model_ready())
         .await

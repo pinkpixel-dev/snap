@@ -11,6 +11,10 @@ pub struct ModelSpec {
     pub fallback_url: Option<&'static str>,
     pub candidates: &'static [&'static str],
     pub min_size: u64,
+    /// Sidecar files that must sit next to the model, as (filename, url) pairs.
+    /// ONNX external-data exports keep their weights in a separate `.onnx.data`
+    /// file that the runtime resolves relative to the model path.
+    pub companions: &'static [(&'static str, &'static str)],
 }
 
 /// Shared on-disk cache directory for every downloaded model.
@@ -47,14 +51,19 @@ pub fn model_path(spec: &ModelSpec) -> Result<PathBuf, String> {
 }
 
 pub fn is_model_ready(spec: &ModelSpec) -> bool {
-    if let Ok(path) = model_path(spec) {
-        if path.exists() {
-            if let Ok(meta) = fs::metadata(&path) {
-                return meta.len() > spec.min_size;
-            }
-        }
+    let Ok(path) = model_path(spec) else { return false };
+    if !path.exists() {
+        return false;
     }
-    false
+    match fs::metadata(&path) {
+        Ok(meta) if meta.len() > spec.min_size => {}
+        _ => return false,
+    }
+
+    let Ok(dir) = models_dir() else { return false };
+    spec.companions.iter().all(|(name, _)| {
+        fs::metadata(dir.join(name)).map(|m| m.len() > 0).unwrap_or(false)
+    })
 }
 
 fn download_stream(url: &str, target_path: &Path) -> Result<(), String> {
@@ -97,6 +106,12 @@ fn download_stream(url: &str, target_path: &Path) -> Result<(), String> {
 pub fn ensure_model(spec: &ModelSpec) -> Result<PathBuf, String> {
     let target_path = model_path(spec)?;
 
+    if is_model_ready(spec) {
+        return Ok(target_path);
+    }
+
+    ensure_companions(spec)?;
+
     if target_path.exists() {
         if let Ok(meta) = fs::metadata(&target_path) {
             if meta.len() > spec.min_size {
@@ -118,3 +133,23 @@ pub fn ensure_model(spec: &ModelSpec) -> Result<PathBuf, String> {
 
     primary_result.map(|_| target_path)
 }
+
+/// Downloads any sidecar weight files the model needs before the model itself loads.
+fn ensure_companions(spec: &ModelSpec) -> Result<(), String> {
+    if spec.companions.is_empty() {
+        return Ok(());
+    }
+
+    let dir = models_dir()?;
+    for (name, url) in spec.companions {
+        let path = dir.join(name);
+        if fs::metadata(&path).map(|m| m.len() > 0).unwrap_or(false) {
+            continue;
+        }
+        download_stream(url, &path)
+            .map_err(|e| format!("Failed to download companion file {}: {}", name, e))?;
+    }
+
+    Ok(())
+}
+

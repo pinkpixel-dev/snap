@@ -14,6 +14,9 @@ import {
   RestoreTaskType,
   RESTORE_TASKS,
   RESTORE_MODELS,
+  EnhanceModelType,
+  ENHANCE_MODELS,
+  COLORIZE_MODEL,
 } from "../types/image";
 
 interface ImageContextType {
@@ -41,8 +44,8 @@ interface ImageContextType {
   stripMetadata: boolean;
 
   // View State
-  activeTab: "crop" | "resize" | "upscale" | "restore" | "cutout" | "smart-select";
-  setActiveTab: (tab: "crop" | "resize" | "upscale" | "restore" | "cutout" | "smart-select") => void;
+  activeTab: "crop" | "resize" | "upscale" | "restore" | "enhance" | "colorize" | "cutout" | "smart-select";
+  setActiveTab: (tab: "crop" | "resize" | "upscale" | "restore" | "enhance" | "colorize" | "cutout" | "smart-select") => void;
   showCheckerboard: boolean;
   setShowCheckerboard: (val: boolean | ((prev: boolean) => boolean)) => void;
   showBeforeAfter: boolean;
@@ -94,6 +97,28 @@ interface ImageContextType {
   checkRestoreModelStatus: (modelId?: RestoreModelType) => Promise<boolean>;
   applyRestore: () => Promise<void>;
   revertRestore: () => void;
+
+  // Enhance State
+  isEnhanceActive: boolean;
+  isEnhanceLoading: boolean;
+  enhanceProgress: string | null;
+  enhanceDataUrl: string | null;
+  isEnhanceModelReady: boolean;
+  enhanceModel: EnhanceModelType;
+  setEnhanceModel: (model: EnhanceModelType) => void;
+  checkEnhanceModelStatus: (modelId?: EnhanceModelType) => Promise<boolean>;
+  applyEnhance: () => Promise<void>;
+  revertEnhance: () => void;
+
+  // Colorize State
+  isColorizeActive: boolean;
+  isColorizeLoading: boolean;
+  colorizeProgress: string | null;
+  colorizeDataUrl: string | null;
+  isColorizeModelReady: boolean;
+  checkColorizeModelStatus: () => Promise<boolean>;
+  applyColorize: () => Promise<void>;
+  revertColorize: () => void;
 
   // Settings State
   isSettingsModalOpen: boolean;
@@ -163,7 +188,7 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [stripMetadata, setStripMetadata] = useState(true);
 
   // View state
-  const [activeTab, setActiveTab] = useState<"crop" | "resize" | "upscale" | "restore" | "cutout" | "smart-select">("crop");
+  const [activeTab, setActiveTab] = useState<"crop" | "resize" | "upscale" | "restore" | "enhance" | "colorize" | "cutout" | "smart-select">("crop");
   const [showCheckerboard, setShowCheckerboard] = useState(false);
   const [showBeforeAfter, setShowBeforeAfter] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -227,6 +252,27 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [restoreProgress, setRestoreProgress] = useState<string | null>(null);
   const [restoreDataUrl, setRestoreDataUrl] = useState<string | null>(null);
   const [isRestoreModelReady, setIsRestoreModelReady] = useState(false);
+
+  // Enhance state
+  const [enhanceModel, setEnhanceModelState] = useState<EnhanceModelType>(() => {
+    const saved = localStorage.getItem("snap_enhance_model");
+    if (saved && ENHANCE_MODELS.some((m) => m.id === saved)) {
+      return saved as EnhanceModelType;
+    }
+    return "iat-lol-v2";
+  });
+  const [isEnhanceActive, setIsEnhanceActive] = useState(false);
+  const [isEnhanceLoading, setIsEnhanceLoading] = useState(false);
+  const [enhanceProgress, setEnhanceProgress] = useState<string | null>(null);
+  const [enhanceDataUrl, setEnhanceDataUrl] = useState<string | null>(null);
+  const [isEnhanceModelReady, setIsEnhanceModelReady] = useState(false);
+
+  // Colorize state
+  const [isColorizeActive, setIsColorizeActive] = useState(false);
+  const [isColorizeLoading, setIsColorizeLoading] = useState(false);
+  const [colorizeProgress, setColorizeProgress] = useState<string | null>(null);
+  const [colorizeDataUrl, setColorizeDataUrl] = useState<string | null>(null);
+  const [isColorizeModelReady, setIsColorizeModelReady] = useState(false);
 
   // Settings modal state
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -460,6 +506,127 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setRestoreDataUrl(null);
   }, []);
 
+  // Whatever the canvas is currently showing, so a new pass builds on the last one.
+  const currentResultUrl =
+    (isUpscaleActive && upscaleDataUrl) ||
+    (isRestoreActive && restoreDataUrl) ||
+    (isEnhanceActive && enhanceDataUrl) ||
+    (isColorizeActive && colorizeDataUrl) ||
+    (isCutoutActive && cutoutDataUrl) ||
+    null;
+
+  const setEnhanceModel = useCallback((model: EnhanceModelType) => {
+    setEnhanceModelState(model);
+    localStorage.setItem("snap_enhance_model", model);
+  }, []);
+
+  const checkEnhanceModelStatus = useCallback(async (modelId?: EnhanceModelType): Promise<boolean> => {
+    try {
+      const targetModel = modelId || enhanceModel;
+      const ready = await invoke<boolean>("check_enhance_model", { modelId: targetModel });
+      setIsEnhanceModelReady(ready);
+      return ready;
+    } catch {
+      setIsEnhanceModelReady(false);
+      return false;
+    }
+  }, [enhanceModel]);
+
+  useEffect(() => {
+    checkEnhanceModelStatus(enhanceModel);
+  }, [enhanceModel, checkEnhanceModelStatus]);
+
+  const applyEnhance = useCallback(async () => {
+    const source = currentResultUrl || imagePath || imageDataUrl;
+    if (!source) return;
+
+    const modelInfo = ENHANCE_MODELS.find((m) => m.id === enhanceModel);
+    setIsEnhanceLoading(true);
+    setError(null);
+    try {
+      const ready = await invoke<boolean>("check_enhance_model", { modelId: enhanceModel });
+      if (!ready) {
+        setEnhanceProgress(`Downloading ${modelInfo?.name ?? enhanceModel} (${modelInfo?.size ?? "small file"})...`);
+        await invoke("download_enhance_model", { modelId: enhanceModel });
+        setIsEnhanceModelReady(true);
+      }
+
+      setEnhanceProgress(`Running ${modelInfo?.name ?? enhanceModel}...`);
+      const resultDataUrl = await invoke<string>("enhance_image", {
+        source,
+        modelId: enhanceModel,
+        maxDim: 2048,
+      });
+
+      setEnhanceDataUrl(resultDataUrl);
+      setIsEnhanceActive(true);
+      setSplitSliderPos(50);
+    } catch (err) {
+      console.error("Enhancement error:", err);
+      setError(typeof err === "string" ? err : "Failed to enhance image");
+    } finally {
+      setIsEnhanceLoading(false);
+      setEnhanceProgress(null);
+    }
+  }, [currentResultUrl, imagePath, imageDataUrl, enhanceModel]);
+
+  const revertEnhance = useCallback(() => {
+    setIsEnhanceActive(false);
+    setEnhanceDataUrl(null);
+  }, []);
+
+  const checkColorizeModelStatus = useCallback(async (): Promise<boolean> => {
+    try {
+      const ready = await invoke<boolean>("check_colorize_model");
+      setIsColorizeModelReady(ready);
+      return ready;
+    } catch {
+      setIsColorizeModelReady(false);
+      return false;
+    }
+  }, []);
+
+  useEffect(() => {
+    checkColorizeModelStatus();
+  }, [checkColorizeModelStatus]);
+
+  const applyColorize = useCallback(async () => {
+    const source = currentResultUrl || imagePath || imageDataUrl;
+    if (!source) return;
+
+    setIsColorizeLoading(true);
+    setError(null);
+    try {
+      const ready = await invoke<boolean>("check_colorize_model");
+      if (!ready) {
+        setColorizeProgress(`Downloading ${COLORIZE_MODEL.name} (${COLORIZE_MODEL.size})...`);
+        await invoke("download_colorize_model");
+        setIsColorizeModelReady(true);
+      }
+
+      setColorizeProgress(`Running ${COLORIZE_MODEL.name}...`);
+      const resultDataUrl = await invoke<string>("colorize_image", {
+        source,
+        maxDim: 2048,
+      });
+
+      setColorizeDataUrl(resultDataUrl);
+      setIsColorizeActive(true);
+      setSplitSliderPos(50);
+    } catch (err) {
+      console.error("Colorization error:", err);
+      setError(typeof err === "string" ? err : "Failed to colorize image");
+    } finally {
+      setIsColorizeLoading(false);
+      setColorizeProgress(null);
+    }
+  }, [currentResultUrl, imagePath, imageDataUrl]);
+
+  const revertColorize = useCallback(() => {
+    setIsColorizeActive(false);
+    setColorizeDataUrl(null);
+  }, []);
+
   const openExportModal = useCallback(() => {
     setExportResult(null);
     setIsExportModalOpen(true);
@@ -491,6 +658,12 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsRestoreActive(false);
     setRestoreDataUrl(null);
     setRestoreProgress(null);
+    setIsEnhanceActive(false);
+    setEnhanceDataUrl(null);
+    setEnhanceProgress(null);
+    setIsColorizeActive(false);
+    setColorizeDataUrl(null);
+    setColorizeProgress(null);
   }, [metadata]);
 
   const clearImage = useCallback(() => {
@@ -515,6 +688,12 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsRestoreActive(false);
     setRestoreDataUrl(null);
     setRestoreProgress(null);
+    setIsEnhanceActive(false);
+    setEnhanceDataUrl(null);
+    setEnhanceProgress(null);
+    setIsColorizeActive(false);
+    setColorizeDataUrl(null);
+    setColorizeProgress(null);
   }, []);
 
   const loadImageFromPath = useCallback(async (path: string) => {
@@ -554,6 +733,12 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsRestoreActive(false);
       setRestoreDataUrl(null);
       setRestoreProgress(null);
+      setIsEnhanceActive(false);
+      setEnhanceDataUrl(null);
+      setEnhanceProgress(null);
+      setIsColorizeActive(false);
+      setColorizeDataUrl(null);
+      setColorizeProgress(null);
 
       // Set initial format intelligently (if source is png, stay png; else webp)
       const lowerFormat = meta.format.toLowerCase();
@@ -604,6 +789,12 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setIsRestoreActive(false);
         setRestoreDataUrl(null);
         setRestoreProgress(null);
+        setIsEnhanceActive(false);
+        setEnhanceDataUrl(null);
+        setEnhanceProgress(null);
+        setIsColorizeActive(false);
+        setColorizeDataUrl(null);
+        setColorizeProgress(null);
         setIsLoading(false);
       };
       img.onerror = () => {
@@ -716,6 +907,10 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         source = upscaleDataUrl;
       } else if (isRestoreActive && restoreDataUrl) {
         source = restoreDataUrl;
+      } else if (isEnhanceActive && enhanceDataUrl) {
+        source = enhanceDataUrl;
+      } else if (isColorizeActive && colorizeDataUrl) {
+        source = colorizeDataUrl;
       } else if (isCutoutActive && cutoutDataUrl) {
         source = cutoutDataUrl;
       } else {
@@ -793,6 +988,10 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       upscaleModel,
       isRestoreActive,
       restoreDataUrl,
+      isEnhanceActive,
+      enhanceDataUrl,
+      isColorizeActive,
+      colorizeDataUrl,
     ]
   );
 
@@ -865,6 +1064,24 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         checkRestoreModelStatus,
         applyRestore,
         revertRestore,
+        isEnhanceActive,
+        isEnhanceLoading,
+        enhanceProgress,
+        enhanceDataUrl,
+        isEnhanceModelReady,
+        enhanceModel,
+        setEnhanceModel,
+        checkEnhanceModelStatus,
+        applyEnhance,
+        revertEnhance,
+        isColorizeActive,
+        isColorizeLoading,
+        colorizeProgress,
+        colorizeDataUrl,
+        isColorizeModelReady,
+        checkColorizeModelStatus,
+        applyColorize,
+        revertColorize,
         isSettingsModalOpen,
         openSettingsModal,
         closeSettingsModal,
