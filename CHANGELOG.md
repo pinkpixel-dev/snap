@@ -2,6 +2,17 @@
 
 All notable changes to Snap will be documented in this file.
 
+## 0.10.0 - September 8, 2026
+
+### ✨ Object Removal
+* Added a Remove Object action to the Select tab. Click the thing you want gone, hit Remove, and LaMa fills the gap with what it thinks belongs there.
+* Runs `opencv/inpainting_lama` (92.6 MB, Apache-2.0), downloaded on first use from the Select panel. Carve's original 208 MB fp32 export is wired in as a mirror.
+* Only the area around your selection is sent through the model, and only masked pixels are written back, so the rest of the photo comes back untouched. Alpha is preserved.
+* The selection is grown slightly before the fill so the removed object does not leave a rim behind.
+
+### 🐛 Fixes
+* Reset now works after Select tab edits. Applying a Select effect replaced the loaded image outright, which left Reset with nothing to undo. The image as originally loaded is now kept and restored.
+
 ## 0.9.0 - September 7, 2026
 
 ### ✨ Light & Exposure

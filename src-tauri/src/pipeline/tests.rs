@@ -555,3 +555,87 @@ fn test_chroma_upsample_keeps_out_of_range_values() {
     assert!((out[63] - (-80.0)).abs() < 0.001, "bottom-right corner drifted: {}", out[63]);
 }
 
+
+#[test]
+fn test_lama_dilate_grows_mask() {
+    let mut mask = image::GrayImage::new(40, 40);
+    mask.put_pixel(20, 20, image::Luma([255]));
+
+    let grown = lama::dilate(&mask, 3);
+    assert_eq!(grown.get_pixel(20, 20)[0], 255, "Original pixel should survive");
+    assert_eq!(grown.get_pixel(23, 20)[0], 255, "Should reach the dilation radius");
+    assert_eq!(grown.get_pixel(20, 17)[0], 255, "Should grow vertically too");
+    assert_eq!(grown.get_pixel(25, 20)[0], 0, "Should stop past the radius");
+}
+
+#[test]
+fn test_lama_mask_bounds() {
+    let mut mask = image::GrayImage::new(30, 30);
+    assert!(lama::mask_bounds(&mask).is_none(), "Empty mask has no bounds");
+
+    mask.put_pixel(5, 7, image::Luma([255]));
+    mask.put_pixel(11, 20, image::Luma([255]));
+    assert_eq!(lama::mask_bounds(&mask), Some((5, 7, 7, 14)));
+}
+
+#[test]
+fn test_lama_context_window_covers_mask_and_stays_in_bounds() {
+    // A small hole gets a window bigger than itself, still inside the image.
+    let (x, y, w, h) = lama::context_window(800, 600, (300, 250, 40, 30));
+    assert_eq!(w, h, "Window should be square");
+    assert!(x + w <= 800 && y + h <= 600, "Window must stay inside the image");
+    assert!(x <= 300 && y <= 250, "Window must start at or before the mask");
+    assert!(x + w >= 340 && y + h >= 280, "Window must contain the whole mask");
+
+    // A mask against the edge cannot push the window off the image.
+    let (x, y, w, h) = lama::context_window(200, 200, (0, 0, 190, 190));
+    assert!(x + w <= 200 && y + h <= 200);
+}
+
+#[test]
+fn test_lama_inpaint_end_to_end() {
+    if !lama::LamaEngine::is_model_ready() {
+        eprintln!("LaMa model not downloaded; skipping live inpainting test");
+        return;
+    }
+    use image::{DynamicImage, Rgba, RgbaImage};
+
+    // A striped background with a flat magenta block sitting on top of it.
+    let mut img = RgbaImage::new(256, 256);
+    for y in 0..256u32 {
+        for x in 0..256u32 {
+            let v = if (x / 8 + y / 8) % 2 == 0 { 180 } else { 120 };
+            img.put_pixel(x, y, Rgba([v, v, (v as u32 * 3 / 4) as u8, 255]));
+        }
+    }
+    let mut mask = image::GrayImage::new(256, 256);
+    for y in 100..150u32 {
+        for x in 100..150u32 {
+            img.put_pixel(x, y, Rgba([255, 0, 255, 255]));
+            mask.put_pixel(x, y, image::Luma([255]));
+        }
+    }
+
+    let src = DynamicImage::ImageRgba8(img);
+    let out = lama::LamaEngine::inpaint(&src, &mask, false).expect("inpaint failed");
+    assert_eq!(out.dimensions(), (256, 256), "Result keeps the source size");
+
+    let out_rgba = out.to_rgba8();
+    let src_rgba = src.to_rgba8();
+
+    // The magenta block should be gone from the middle of the masked area.
+    let filled = out_rgba.get_pixel(125, 125);
+    assert!(
+        !(filled[0] > 200 && filled[1] < 60 && filled[2] > 200),
+        "Masked object should have been painted over, got {:?}",
+        filled
+    );
+
+    // A corner far from the mask must come back untouched.
+    assert_eq!(
+        out_rgba.get_pixel(5, 5),
+        src_rgba.get_pixel(5, 5),
+        "Pixels outside the mask must be preserved exactly"
+    );
+    assert_eq!(out_rgba.get_pixel(125, 125)[3], 255, "Alpha is carried over");
+}

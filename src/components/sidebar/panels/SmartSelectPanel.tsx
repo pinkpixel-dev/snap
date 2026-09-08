@@ -16,6 +16,7 @@ import {
   Sliders,
   Crop,
   Sparkles,
+  Eraser,
 } from "lucide-react";
 
 export const SmartSelectPanel: React.FC = () => {
@@ -45,6 +46,10 @@ export const SmartSelectPanel: React.FC = () => {
     setContrast,
     saturation,
     setSaturation,
+    isLamaReady,
+    isLamaDownloading,
+    lamaProgress,
+    downloadLamaModel,
     downloadModel,
     undoPoint,
     clearPoints,
@@ -56,6 +61,7 @@ export const SmartSelectPanel: React.FC = () => {
   const { imagePath, imageDataUrl } = useImage();
   const hasImage = Boolean(imagePath || imageDataUrl);
   const hasPoints = points.length > 0;
+  const isRemove = selectedEffect === "remove";
 
   return (
     <div className="sidebar-content">
@@ -338,9 +344,92 @@ export const SmartSelectPanel: React.FC = () => {
                 <Sliders size={14} />
                 <span>Adjustments</span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedEffect("remove")}
+                title="Erase the selected object and fill the gap"
+                style={{
+                  gridColumn: "1 / -1",
+                  padding: "8px 10px",
+                  borderRadius: "var(--radius-md)",
+                  border: isRemove ? "1px solid var(--accent-primary)" : "1px solid var(--border-default)",
+                  backgroundColor: isRemove ? "var(--accent-surface)" : "var(--bg-surface)",
+                  color: isRemove ? "var(--text-primary)" : "var(--text-secondary)",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  fontSize: "12px",
+                }}
+              >
+                <Eraser size={14} />
+                <span>Remove Object</span>
+              </button>
             </div>
 
             {/* Effect Specific Options */}
+            {isRemove && (
+              <div
+                style={{
+                  padding: "10px",
+                  borderRadius: "var(--radius-md)",
+                  backgroundColor: "var(--bg-surface)",
+                  border: "1px solid var(--border-subtle)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "8px",
+                }}
+              >
+                {isLamaReady ? (
+                  <p style={{ margin: 0, fontSize: "11px", color: "var(--text-muted)", lineHeight: 1.5 }}>
+                    LaMa fills the gap with whatever it thinks belongs there. It is
+                    strongest on backgrounds like walls, sky, grass and pavement, and
+                    weakest on faces and text. Everything outside the selection is left
+                    untouched.
+                  </p>
+                ) : (
+                  <>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <Download size={16} style={{ color: "var(--accent-primary)" }} />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: "12px", fontWeight: 600 }}>LaMa Weights Needed</div>
+                        <div style={{ fontSize: "11px", color: "var(--text-muted)" }}>
+                          Inpainting ONNX model (92.6 MB)
+                        </div>
+                      </div>
+                    </div>
+
+                    {lamaProgress && (
+                      <div style={{ fontSize: "11px", color: "var(--text-secondary)" }}>
+                        {lamaProgress}
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={downloadLamaModel}
+                      disabled={isLamaDownloading}
+                      style={{ width: "100%", justifyContent: "center" }}
+                    >
+                      {isLamaDownloading ? (
+                        <>
+                          <Loader2 size={14} className="spin" />
+                          <span>Downloading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Download size={14} />
+                          <span>Download LaMa Model</span>
+                        </>
+                      )}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
             {selectedEffect === "blur" && (
               <div
                 style={{
@@ -492,18 +581,19 @@ export const SmartSelectPanel: React.FC = () => {
                 type="button"
                 className="btn btn-primary"
                 onClick={applyActiveEffect}
-                disabled={!hasPoints || isApplyingEffect || isDecoding}
+                disabled={!hasPoints || isApplyingEffect || isDecoding || (isRemove && !isLamaReady)}
+                title={isRemove && !isLamaReady ? "Download the LaMa model first" : undefined}
                 style={{ width: "100%", justifyContent: "center", padding: "10px", gap: "8px" }}
               >
                 {isApplyingEffect ? (
                   <>
                     <Loader2 size={14} className="spin" />
-                    <span>Applying Effect...</span>
+                    <span>{isRemove ? "Removing Object..." : "Applying Effect..."}</span>
                   </>
                 ) : (
                   <>
-                    <Wand2 size={14} />
-                    <span>Apply Effect to Image</span>
+                    {isRemove ? <Eraser size={14} /> : <Wand2 size={14} />}
+                    <span>{isRemove ? "Remove Object" : "Apply Effect to Image"}</span>
                   </>
                 )}
               </button>

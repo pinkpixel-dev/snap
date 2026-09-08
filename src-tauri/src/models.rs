@@ -73,7 +73,7 @@ pub struct SamMaskResult {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SamEffectSettings {
-    pub effect: String, // "cutout", "blur", "color_splash", "adjustments"
+    pub effect: String, // "cutout", "blur", "color_splash", "adjustments", "remove"
     pub blur_radius: Option<f32>,
     pub invert: Option<bool>,
     pub target: Option<String>, // "subject" or "background"

@@ -47,6 +47,8 @@ pub fn run() {
             commands::init_sam_session,
             commands::decode_sam_mask,
             commands::apply_sam_effect,
+            commands::check_lama_model,
+            commands::download_lama_model,
         ])
         .run(tauri::generate_context!())
         .expect("error while running snap application");

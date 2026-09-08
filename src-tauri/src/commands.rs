@@ -241,6 +241,20 @@ pub async fn decode_sam_mask(
 }
 
 #[tauri::command]
+pub async fn check_lama_model() -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(move || Pipeline::is_lama_model_ready())
+        .await
+        .map_err(|e| format!("Task join error: {}", e))
+}
+
+#[tauri::command]
+pub async fn download_lama_model() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || Pipeline::download_lama_model())
+        .await
+        .map_err(|e| format!("Task join error: {}", e))?
+}
+
+#[tauri::command]
 pub async fn apply_sam_effect(
     source: String,
     settings: crate::models::SamEffectSettings,

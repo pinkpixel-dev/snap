@@ -11,6 +11,7 @@ pub mod restore;
 pub mod enhance;
 pub mod colorize;
 pub mod sam;
+pub mod lama;
 
 pub struct Pipeline;
 
@@ -643,7 +644,13 @@ impl Pipeline {
         };
 
         let img = Self::load_image(source)?;
-        let result_img = sam::SamEngine::apply_effect(&img, &mask, settings)?;
+        // Removal is the one effect that needs a second model rather than pixel
+        // math over the mask, so it branches out to LaMa here.
+        let result_img = if settings.effect.eq_ignore_ascii_case("remove") {
+            lama::LamaEngine::inpaint(&img, &mask, settings.invert.unwrap_or(false))?
+        } else {
+            sam::SamEngine::apply_effect(&img, &mask, settings)?
+        };
 
         let mut buffer = Cursor::new(Vec::new());
         result_img.write_to(&mut buffer, ImageFormat::Png)
@@ -655,6 +662,14 @@ impl Pipeline {
         );
 
         Ok(format!("data:image/png;base64,{}", base64_str))
+    }
+
+    pub fn is_lama_model_ready() -> bool {
+        lama::LamaEngine::is_model_ready()
+    }
+
+    pub fn download_lama_model() -> Result<(), String> {
+        lama::LamaEngine::ensure_model().map(|_| ())
     }
 
     pub fn is_cuda_available() -> bool {

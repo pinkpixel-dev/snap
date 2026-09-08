@@ -310,7 +310,7 @@ export interface SamMaskResult {
 }
 
 export interface SamEffectSettings {
-  effect: "cutout" | "blur" | "color_splash" | "adjustments";
+  effect: "cutout" | "blur" | "color_splash" | "adjustments" | "remove";
   blur_radius?: number;
   invert?: boolean;
   target?: "subject" | "background";

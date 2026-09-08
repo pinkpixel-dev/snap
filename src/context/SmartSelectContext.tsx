@@ -20,8 +20,8 @@ interface SmartSelectContextType {
   setInvertSelection: (val: boolean | ((prev: boolean) => boolean)) => void;
 
   // Effects & Adjustments
-  selectedEffect: "cutout" | "blur" | "color_splash" | "adjustments";
-  setSelectedEffect: (eff: "cutout" | "blur" | "color_splash" | "adjustments") => void;
+  selectedEffect: "cutout" | "blur" | "color_splash" | "adjustments" | "remove";
+  setSelectedEffect: (eff: "cutout" | "blur" | "color_splash" | "adjustments" | "remove") => void;
   blurRadius: number;
   setBlurRadius: (r: number) => void;
   adjustmentTarget: "subject" | "background";
@@ -32,6 +32,12 @@ interface SmartSelectContextType {
   setContrast: (c: number) => void;
   saturation: number;
   setSaturation: (s: number) => void;
+
+  // Object removal (LaMa inpainting, downloaded separately from the SAM weights)
+  isLamaReady: boolean;
+  isLamaDownloading: boolean;
+  lamaProgress: string | null;
+  downloadLamaModel: () => Promise<void>;
 
   // Actions
   checkModelStatus: () => Promise<boolean>;
@@ -72,12 +78,16 @@ export const SmartSelectProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [bounds, setBounds] = useState<CropSettings | null>(null);
   const [invertSelection, setInvertSelection] = useState(false);
 
-  const [selectedEffect, setSelectedEffect] = useState<"cutout" | "blur" | "color_splash" | "adjustments">("cutout");
+  const [selectedEffect, setSelectedEffect] = useState<"cutout" | "blur" | "color_splash" | "adjustments" | "remove">("cutout");
   const [blurRadius, setBlurRadius] = useState<number>(15);
   const [adjustmentTarget, setAdjustmentTarget] = useState<"subject" | "background">("background");
   const [brightness, setBrightness] = useState<number>(0);
   const [contrast, setContrast] = useState<number>(0);
   const [saturation, setSaturation] = useState<number>(0);
+
+  const [isLamaReady, setIsLamaReady] = useState(false);
+  const [isLamaDownloading, setIsLamaDownloading] = useState(false);
+  const [lamaProgress, setLamaProgress] = useState<string | null>(null);
 
   const encodedSourceRef = useRef<string | null>(null);
 
@@ -107,10 +117,37 @@ export const SmartSelectProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, []);
 
-  // Check model on mount
+  const checkLamaStatus = useCallback(async (): Promise<boolean> => {
+    try {
+      const ready = await invoke<boolean>("check_lama_model");
+      setIsLamaReady(ready);
+      return ready;
+    } catch {
+      setIsLamaReady(false);
+      return false;
+    }
+  }, []);
+
+  const downloadLamaModel = useCallback(async () => {
+    setIsLamaDownloading(true);
+    setLamaProgress("Downloading LaMa inpainting model (92.6 MB)...");
+    try {
+      await invoke("download_lama_model");
+      setIsLamaReady(true);
+      setLamaProgress(null);
+    } catch (err) {
+      console.error("LaMa download error:", err);
+      setLamaProgress("Download failed. Click to retry.");
+    } finally {
+      setIsLamaDownloading(false);
+    }
+  }, []);
+
+  // Check models on mount
   useEffect(() => {
     checkModelStatus();
-  }, [checkModelStatus]);
+    checkLamaStatus();
+  }, [checkModelStatus, checkLamaStatus]);
 
   // When active tab is smart-select and model is ready, initialize session with active image
   useEffect(() => {
@@ -338,6 +375,10 @@ export const SmartSelectProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setContrast,
         saturation,
         setSaturation,
+        isLamaReady,
+        isLamaDownloading,
+        lamaProgress,
+        downloadLamaModel,
         checkModelStatus,
         downloadModel,
         addPoint,
