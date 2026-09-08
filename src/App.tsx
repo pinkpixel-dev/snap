@@ -9,11 +9,17 @@ import { SettingsModal } from "./components/modals/SettingsModal";
 import { open } from "@tauri-apps/plugin-dialog";
 
 const SnapWorkspace: React.FC = () => {
-  const { metadata, loadImageFromPath, openExportModal, openSettingsModal } = useImage();
+  const { metadata, loadImageFromPath, openExportModal, openSettingsModal, toggleSidebar } = useImage();
 
   // Keyboard shortcut listeners
   useEffect(() => {
     const handleKeyDown = async (e: KeyboardEvent) => {
+      // Ctrl+\ / Cmd+\ or Ctrl+B / Cmd+B: Toggle Sidebar
+      if ((e.ctrlKey || e.metaKey) && (e.key === "\\" || e.key.toLowerCase() === "b")) {
+        e.preventDefault();
+        toggleSidebar();
+        return;
+      }
       // Ctrl+O / Cmd+O: Open file
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "o") {
         e.preventDefault();
@@ -57,7 +63,7 @@ const SnapWorkspace: React.FC = () => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [metadata, loadImageFromPath, openExportModal, openSettingsModal]);
+  }, [metadata, loadImageFromPath, openExportModal, openSettingsModal, toggleSidebar]);
 
   return (
     <div className="app-container">

@@ -2,6 +2,16 @@
 
 All notable changes to Snap will be documented in this file.
 
+## 0.4.2 - September 7, 2026
+
+### 🎨 Interface
+* Added a collapsible sidebar toggle button to the canvas preview toolbar to easily hide or show the tool panel.
+* Added keyboard shortcut support (`Ctrl+\` / `Cmd+\` and `Ctrl+B` / `Cmd+B`) to toggle the sidebar.
+* Added automatic canvas refit calculation so collapsing the sidebar instantly expands the image to fill the entire workspace.
+
+### 🏷️ Versioning
+* Bumped version to 0.4.2 across package.json, package-lock.json, Cargo.toml, and tauri.conf.json.
+
 ## 0.4.1 - September 7, 2026
 
 ### 🎨 Interface

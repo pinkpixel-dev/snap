@@ -8,6 +8,8 @@ import {
   Grid,
   Eye,
   EyeOff,
+  PanelRightClose,
+  PanelRightOpen,
 } from "lucide-react";
 
 type DragHandleType =
@@ -43,6 +45,8 @@ export const CanvasPreview: React.FC = () => {
     upscaleScale,
     splitSliderPos,
     setSplitSliderPos,
+    isSidebarOpen,
+    toggleSidebar,
   } = useImage();
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -113,6 +117,16 @@ export const CanvasPreview: React.FC = () => {
     window.addEventListener("resize", updateFitZoom);
     return () => window.removeEventListener("resize", updateFitZoom);
   }, [updateFitZoom]);
+
+  // Recalculate fit zoom when sidebar toggles to maximize canvas
+  useEffect(() => {
+    if (isFit) {
+      const raf = requestAnimationFrame(() => {
+        updateFitZoom();
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [isSidebarOpen, isFit, updateFitZoom]);
 
   const handleZoomIn = () => {
     setIsFit(false);
@@ -480,6 +494,21 @@ export const CanvasPreview: React.FC = () => {
               <Eye size={13} style={{ marginRight: "4px" }} />
             )}
             <span>{showBeforeAfter ? "Show Edits" : "Compare"}</span>
+          </button>
+
+          <button
+            type="button"
+            className={`btn btn-secondary ${!isSidebarOpen ? "active" : ""}`}
+            onClick={toggleSidebar}
+            style={{ height: "28px", padding: "0 8px", fontSize: "11px" }}
+            title={isSidebarOpen ? "Hide sidebar (Ctrl+\\)" : "Show sidebar (Ctrl+\\)"}
+          >
+            {isSidebarOpen ? (
+              <PanelRightClose size={13} style={{ marginRight: "4px" }} />
+            ) : (
+              <PanelRightOpen size={13} style={{ marginRight: "4px" }} />
+            )}
+            <span>{isSidebarOpen ? "Hide Panel" : "Show Panel"}</span>
           </button>
         </div>
       </div>

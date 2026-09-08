@@ -9,7 +9,11 @@ import { CutoutPanel } from "./panels/CutoutPanel";
 import { MetadataPanel } from "./panels/MetadataPanel";
 
 export const ToolSidebar: React.FC = () => {
-  const { activeTab, setActiveTab } = useImage();
+  const { activeTab, setActiveTab, isSidebarOpen } = useImage();
+
+  if (!isSidebarOpen) {
+    return null;
+  }
 
   const tabs = [
     { id: "crop" as const, label: "Crop", icon: Crop },

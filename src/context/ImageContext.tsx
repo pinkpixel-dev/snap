@@ -43,6 +43,9 @@ interface ImageContextType {
   setShowCheckerboard: (val: boolean | ((prev: boolean) => boolean)) => void;
   showBeforeAfter: boolean;
   setShowBeforeAfter: (val: boolean | ((prev: boolean) => boolean)) => void;
+  isSidebarOpen: boolean;
+  setIsSidebarOpen: (val: boolean | ((prev: boolean) => boolean)) => void;
+  toggleSidebar: () => void;
 
   // Cutout State
   isCutoutActive: boolean;
@@ -138,6 +141,11 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [activeTab, setActiveTab] = useState<"crop" | "resize" | "upscale" | "cutout" | "format" | "metadata">("crop");
   const [showCheckerboard, setShowCheckerboard] = useState(false);
   const [showBeforeAfter, setShowBeforeAfter] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+  const toggleSidebar = useCallback(() => {
+    setIsSidebarOpen((prev) => !prev);
+  }, []);
 
   // Cutout state
   const [cutoutModel, setCutoutModelState] = useState<CutoutModelType>(() => {
@@ -643,6 +651,9 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setShowCheckerboard,
         showBeforeAfter,
         setShowBeforeAfter,
+        isSidebarOpen,
+        setIsSidebarOpen,
+        toggleSidebar,
         isCutoutActive,
         isCutoutLoading,
         cutoutProgress,
