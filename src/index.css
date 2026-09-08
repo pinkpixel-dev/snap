@@ -210,7 +210,7 @@ html, body, #root {
 
 /* Tool Sidebar */
 .tool-sidebar {
-  width: 540px;
+  width: 380px;
   background-color: var(--bg-subtle);
   border-left: 1px solid var(--border-subtle);
   display: flex;
@@ -322,6 +322,18 @@ html, body, #root {
 
 .input-field::placeholder {
   color: var(--text-muted);
+}
+
+/* Remove default spin buttons from number inputs */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 /* Buttons */
@@ -506,7 +518,8 @@ html, body, #root {
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);
   width: 100%;
-  max-width: 480px;
+  max-width: 500px;
+  max-height: 92vh;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -525,6 +538,7 @@ html, body, #root {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow-y: auto;
 }
 
 .modal-footer {

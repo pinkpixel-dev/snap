@@ -106,9 +106,10 @@ export const CutoutPanel: React.FC = () => {
                     alignItems: "center",
                     justifyContent: "space-between",
                     width: "100%",
+                    gap: "6px",
                   }}
                 >
-                  <span style={{ fontSize: "12px", fontWeight: 600 }}>
+                  <span style={{ fontSize: "11.5px", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {model.shortName}
                   </span>
                   <span
@@ -116,6 +117,7 @@ export const CutoutPanel: React.FC = () => {
                       fontSize: "9px",
                       color: "var(--text-muted)",
                       fontFamily: "var(--font-mono)",
+                      flexShrink: 0,
                     }}
                   >
                     {model.resolution}

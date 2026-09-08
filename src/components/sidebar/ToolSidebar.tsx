@@ -1,12 +1,10 @@
 import React from "react";
 import { useImage } from "../../context/ImageContext";
-import { Crop, Scaling, Sparkles, Sliders, Scissors, Shield } from "lucide-react";
+import { Crop, Scaling, Sparkles, Scissors } from "lucide-react";
 import { CropPanel } from "./panels/CropPanel";
 import { ResizePanel } from "./panels/ResizePanel";
 import { UpscalePanel } from "./panels/UpscalePanel";
-import { FormatPanel } from "./panels/FormatPanel";
 import { CutoutPanel } from "./panels/CutoutPanel";
-import { MetadataPanel } from "./panels/MetadataPanel";
 
 export const ToolSidebar: React.FC = () => {
   const { activeTab, setActiveTab, isSidebarOpen } = useImage();
@@ -20,8 +18,6 @@ export const ToolSidebar: React.FC = () => {
     { id: "resize" as const, label: "Resize", icon: Scaling },
     { id: "upscale" as const, label: "Upscale", icon: Sparkles },
     { id: "cutout" as const, label: "BG Removal", icon: Scissors },
-    { id: "format" as const, label: "Format", icon: Sliders },
-    { id: "metadata" as const, label: "Privacy", icon: Shield },
   ];
 
   return (
@@ -51,8 +47,6 @@ export const ToolSidebar: React.FC = () => {
         {activeTab === "resize" && <ResizePanel />}
         {activeTab === "upscale" && <UpscalePanel />}
         {activeTab === "cutout" && <CutoutPanel />}
-        {activeTab === "format" && <FormatPanel />}
-        {activeTab === "metadata" && <MetadataPanel />}
       </div>
     </aside>
   );

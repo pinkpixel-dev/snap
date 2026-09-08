@@ -15,6 +15,7 @@ import {
   RotateCcw,
   Scissors,
   Sparkles,
+  AlertTriangle,
 } from "lucide-react";
 
 export const ExportModal: React.FC = () => {
@@ -32,6 +33,8 @@ export const ExportModal: React.FC = () => {
     setFormat,
     quality,
     setQuality,
+    flattenBg,
+    setFlattenBg,
     stripMetadata,
     setStripMetadata,
     isCutoutActive,
@@ -306,6 +309,49 @@ export const ExportModal: React.FC = () => {
                 </div>
               </div>
 
+              {/* JPEG Transparency Flattening (if JPEG format with alpha) */}
+              {format === "jpeg" && (metadata?.has_alpha || isCutoutActive) && (
+                <div
+                  style={{
+                    padding: "12px 14px",
+                    backgroundColor: "var(--warning-surface)",
+                    border: "1px solid rgba(245, 158, 11, 0.3)",
+                    borderRadius: "var(--radius-md)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px",
+                    fontSize: "12px",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px", color: "var(--warning)", fontWeight: 600 }}>
+                    <AlertTriangle size={15} />
+                    <span>JPEG does not support transparency</span>
+                  </div>
+                  <p style={{ color: "var(--text-secondary)", fontSize: "11px", lineHeight: "1.4" }}>
+                    Transparent pixels will be composited onto a solid background color.
+                  </p>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <label style={{ fontSize: "11px", color: "var(--text-muted)" }}>Background Color:</label>
+                    <input
+                      type="color"
+                      value={flattenBg}
+                      onChange={(e) => setFlattenBg(e.target.value)}
+                      style={{
+                        width: "28px",
+                        height: "28px",
+                        border: "none",
+                        borderRadius: "var(--radius-sm)",
+                        cursor: "pointer",
+                        backgroundColor: "transparent",
+                      }}
+                    />
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: "11px", color: "var(--text-primary)" }}>
+                      {flattenBg.toUpperCase()}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {/* Compression Slider & Presets (if Compressed mode) */}
               {compressionMode === "compressed" && (
                 <div
@@ -380,7 +426,98 @@ export const ExportModal: React.FC = () => {
                 </div>
               )}
 
-              {/* Output Specs & Privacy Policy Card */}
+              {/* Privacy Protection Card */}
+              <div
+                style={{
+                  padding: "12px 14px",
+                  backgroundColor: stripMetadata ? "var(--success-surface)" : "var(--bg-surface)",
+                  border: `1px solid ${stripMetadata ? "rgba(34, 197, 94, 0.3)" : "var(--border-subtle)"}`,
+                  borderRadius: "var(--radius-md)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "8px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    {stripMetadata ? (
+                      <ShieldCheck size={16} color="var(--success)" />
+                    ) : (
+                      <ShieldAlert size={16} color="var(--warning)" />
+                    )}
+                    <span style={{ fontWeight: 600, fontSize: "12px", color: "var(--text-primary)" }}>
+                      Privacy Protection
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className={`btn btn-secondary ${stripMetadata ? "active" : ""}`}
+                    onClick={() => setStripMetadata(!stripMetadata)}
+                    style={{ fontSize: "11px", height: "26px", padding: "2px 10px", fontWeight: 500 }}
+                  >
+                    {stripMetadata ? "Stripping Active" : "Preserve Metadata"}
+                  </button>
+                </div>
+                <p style={{ fontSize: "11px", color: "var(--text-secondary)", lineHeight: "1.4" }}>
+                  {stripMetadata
+                    ? "Exports automatically discard camera serials, GPS coordinates, timestamps, and embedded software tags."
+                    : "Original metadata chunks will be retained where supported by the target format."}
+                </p>
+              </div>
+
+              {/* Detected Source Details Card */}
+              {metadata && (
+                <div
+                  style={{
+                    padding: "10px 12px",
+                    backgroundColor: "var(--bg-surface)",
+                    borderRadius: "var(--radius-md)",
+                    border: "1px solid var(--border-subtle)",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
+                    fontSize: "11.5px",
+                  }}
+                >
+                  <span style={{ fontSize: "10px", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.5px", fontWeight: 600 }}>
+                    Detected File Details
+                  </span>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 14px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "var(--text-muted)" }}>Format:</span>
+                      <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{metadata.format}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "var(--text-muted)" }}>Raw Dim:</span>
+                      <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{metadata.width} × {metadata.height}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "var(--text-muted)" }}>File Size:</span>
+                      <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{formatBytes(metadata.file_size)}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: "var(--text-muted)" }}>Alpha Channel:</span>
+                      <span style={{ fontFamily: "var(--font-mono)", color: metadata.has_alpha ? "var(--success)" : "var(--text-secondary)" }}>
+                        {metadata.has_alpha ? "Yes" : "None"}
+                      </span>
+                    </div>
+                    {metadata.camera_model && (
+                      <div style={{ display: "flex", justifyContent: "space-between", gridColumn: "1 / -1" }}>
+                        <span style={{ color: "var(--text-muted)" }}>Camera:</span>
+                        <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{metadata.camera_model}</span>
+                      </div>
+                    )}
+                    {metadata.date_taken && (
+                      <div style={{ display: "flex", justifyContent: "space-between", gridColumn: "1 / -1" }}>
+                        <span style={{ color: "var(--text-muted)" }}>Date Taken:</span>
+                        <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>{metadata.date_taken}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Target Output Specs Card */}
               <div
                 style={{
                   padding: "12px 14px",
@@ -401,7 +538,7 @@ export const ExportModal: React.FC = () => {
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ color: "var(--text-secondary)" }}>Dimensions</span>
+                  <span style={{ color: "var(--text-secondary)" }}>Output Dimensions</span>
                   <span style={{ fontFamily: "var(--font-mono)", color: "var(--text-primary)" }}>
                     {finalW} × {finalH} px
                   </span>
@@ -417,31 +554,6 @@ export const ExportModal: React.FC = () => {
                     </span>
                   </div>
                 )}
-
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ color: "var(--text-secondary)" }}>Privacy & Metadata</span>
-                  <button
-                    type="button"
-                    onClick={() => setStripMetadata(!stripMetadata)}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      padding: "2px 6px",
-                      borderRadius: "var(--radius-sm)",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "4px",
-                      color: stripMetadata ? "var(--success)" : "var(--warning)",
-                      fontSize: "12px",
-                      fontWeight: 500,
-                    }}
-                    title="Click to toggle metadata preservation"
-                  >
-                    {stripMetadata ? <ShieldCheck size={14} /> : <ShieldAlert size={14} />}
-                    <span>{stripMetadata ? "Strip Metadata" : "Preserve Metadata"}</span>
-                  </button>
-                </div>
               </div>
 
               {errorMessage && (

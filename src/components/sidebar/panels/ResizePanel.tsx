@@ -40,6 +40,7 @@ export const ResizePanel: React.FC = () => {
             <input
               type="number"
               className="input-field"
+              style={{ paddingRight: "30px", fontFamily: "var(--font-mono)" }}
               value={resizeWidth || ""}
               min={1}
               max={16384}
@@ -54,8 +55,9 @@ export const ResizePanel: React.FC = () => {
             <span
               style={{
                 position: "absolute",
-                right: "8px",
-                top: "7px",
+                right: "10px",
+                top: "50%",
+                transform: "translateY(-50%)",
                 fontSize: "11px",
                 color: "var(--text-muted)",
                 pointerEvents: "none",
@@ -78,6 +80,7 @@ export const ResizePanel: React.FC = () => {
             <input
               type="number"
               className="input-field"
+              style={{ paddingRight: "30px", fontFamily: "var(--font-mono)" }}
               value={resizeHeight || ""}
               min={1}
               max={16384}
@@ -92,8 +95,9 @@ export const ResizePanel: React.FC = () => {
             <span
               style={{
                 position: "absolute",
-                right: "8px",
-                top: "7px",
+                right: "10px",
+                top: "50%",
+                transform: "translateY(-50%)",
                 fontSize: "11px",
                 color: "var(--text-muted)",
                 pointerEvents: "none",
