@@ -138,5 +138,7 @@ fn test_export_settings_upscale() {
     assert_eq!(settings.upscale_model.as_deref(), Some("realesrgan-x4plus"));
 }
 
-
-
+#[test]
+fn test_cuda_availability_check() {
+    let _available = Pipeline::is_cuda_available();
+}

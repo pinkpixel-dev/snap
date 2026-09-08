@@ -501,6 +501,30 @@ impl Pipeline {
 
         Ok(format!("data:image/png;base64,{}", base64_str))
     }
+
+    pub fn is_cuda_available() -> bool {
+        #[cfg(target_os = "linux")]
+        {
+            use std::ffi::CString;
+            // ONNX Runtime CUDA execution provider requires libcudnn.so for convolution layers.
+            // On Linux, ONNX Runtime attempts to dlopen("libcudnn.so").
+            let lib_names = ["libcudnn.so", "libcudnn.so.9", "libcudnn.so.8"];
+            for name in lib_names {
+                if let Ok(cname) = CString::new(name) {
+                    let handle = unsafe { libc::dlopen(cname.as_ptr(), libc::RTLD_LAZY | libc::RTLD_LOCAL) };
+                    if !handle.is_null() {
+                        unsafe { libc::dlclose(handle) };
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+        #[cfg(not(target_os = "linux"))]
+        {
+            false
+        }
+    }
 }
 
 #[cfg(test)]

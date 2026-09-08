@@ -11,6 +11,7 @@ import {
   Key,
   Settings,
   Sparkles,
+  AlertCircle,
 } from "lucide-react";
 import { CUTOUT_MODELS, CutoutModelType } from "../../../types/image";
 
@@ -30,6 +31,7 @@ export const CutoutPanel: React.FC = () => {
     setShowCheckerboard,
     imagePath,
     imageDataUrl,
+    error,
   } = useImage();
 
   const hasImage = Boolean(imagePath || imageDataUrl);
@@ -261,6 +263,25 @@ export const CutoutPanel: React.FC = () => {
 
       {/* Primary Action Button */}
       <div className="control-group">
+        {error && !isCutoutLoading && (
+          <div
+            style={{
+              padding: "8px 12px",
+              backgroundColor: "rgba(239, 68, 68, 0.1)",
+              border: "1px solid rgba(239, 68, 68, 0.2)",
+              borderRadius: "var(--radius-md)",
+              color: "var(--error)",
+              fontSize: "12px",
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "8px",
+              marginBottom: "8px",
+            }}
+          >
+            <AlertCircle size={14} style={{ marginTop: "2px", flexShrink: 0 }} />
+            <span>{error}</span>
+          </div>
+        )}
         {!isCutoutActive ? (
           <button
             type="button"

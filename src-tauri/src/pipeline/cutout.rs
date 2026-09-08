@@ -5,6 +5,7 @@ use directories::ProjectDirs;
 use image::{DynamicImage, GenericImageView, GrayImage, Luma};
 use ndarray::Array4;
 use ort::session::Session;
+use super::Pipeline;
 
 pub struct ModelSpec {
     pub id: &'static str,
@@ -226,14 +227,27 @@ impl CutoutEngine {
         let spec = Self::get_spec(model_id);
         let model_path = Self::ensure_model(model_id, hf_token)?;
 
-        // 1. Initialize ONNX runtime and session with GPU (CUDA) and CPU fallback
-        let mut session = Session::builder()
-            .map_err(|e| format!("Failed to create session builder: {}", e))?
-            .with_execution_providers([
-                ort::ep::CUDA::default().build(),
-                ort::ep::CPU::default().build(),
-            ])
-            .map_err(|e| format!("Failed to configure execution providers: {}", e))?
+        // 1. Initialize ONNX runtime and session with GPU (CUDA) if cuDNN is present, else CPU
+        let use_cuda = Pipeline::is_cuda_available();
+        let mut builder = Session::builder()
+            .map_err(|e| format!("Failed to create session builder: {}", e))?;
+
+        if use_cuda {
+            builder = builder
+                .with_execution_providers([
+                    ort::ep::CUDA::default().build(),
+                    ort::ep::CPU::default().build(),
+                ])
+                .map_err(|e| format!("Failed to configure execution providers: {}", e))?;
+        } else {
+            builder = builder
+                .with_execution_providers([
+                    ort::ep::CPU::default().build(),
+                ])
+                .map_err(|e| format!("Failed to configure CPU execution provider: {}", e))?;
+        }
+
+        let mut session = builder
             .with_intra_threads(4)
             .map_err(|e| format!("Failed to configure intra threads: {}", e))?
             .with_inter_threads(1)

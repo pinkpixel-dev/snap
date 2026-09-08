@@ -5,6 +5,7 @@ use directories::ProjectDirs;
 use image::{DynamicImage, GenericImageView, GrayImage, ImageBuffer, Luma, Rgba, RgbaImage};
 use ndarray::Array4;
 use ort::session::Session;
+use super::Pipeline;
 
 pub struct ModelSpec {
     pub id: &'static str,
@@ -213,13 +214,26 @@ impl UpscaleEngine {
     ) -> Result<DynamicImage, String> {
         let model_path = Self::ensure_model(model_id)?;
 
-        let mut session = Session::builder()
-            .map_err(|e| format!("Failed to create session builder: {}", e))?
-            .with_execution_providers([
-                ort::ep::CUDA::default().build(),
-                ort::ep::CPU::default().build(),
-            ])
-            .map_err(|e| format!("Failed to configure execution providers: {}", e))?
+        let use_cuda = Pipeline::is_cuda_available();
+        let mut builder = Session::builder()
+            .map_err(|e| format!("Failed to create session builder: {}", e))?;
+
+        if use_cuda {
+            builder = builder
+                .with_execution_providers([
+                    ort::ep::CUDA::default().build(),
+                    ort::ep::CPU::default().build(),
+                ])
+                .map_err(|e| format!("Failed to configure execution providers: {}", e))?;
+        } else {
+            builder = builder
+                .with_execution_providers([
+                    ort::ep::CPU::default().build(),
+                ])
+                .map_err(|e| format!("Failed to configure CPU execution provider: {}", e))?;
+        }
+
+        let mut session = builder
             .with_intra_threads(4)
             .map_err(|e| format!("Failed to configure intra threads: {}", e))?
             .with_inter_threads(1)

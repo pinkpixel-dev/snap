@@ -3535,6 +3535,7 @@ dependencies = [
  "directories",
  "image",
  "kamadak-exif",
+ "libc",
  "ndarray",
  "ort",
  "serde",

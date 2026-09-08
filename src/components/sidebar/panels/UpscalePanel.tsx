@@ -9,6 +9,7 @@ import {
   SlidersHorizontal,
   ArrowUpRight,
   Download,
+  AlertCircle,
 } from "lucide-react";
 import { UPSCALE_MODELS, UpscaleModelType } from "../../../types/image";
 
@@ -31,6 +32,7 @@ export const UpscalePanel: React.FC = () => {
     metadata,
     crop,
     rotate,
+    error,
   } = useImage();
 
   const hasImage = Boolean(imagePath || imageDataUrl);
@@ -309,6 +311,25 @@ export const UpscalePanel: React.FC = () => {
         )}
 
         {/* Action Button */}
+        {error && !isUpscaleLoading && (
+          <div
+            style={{
+              padding: "8px 12px",
+              backgroundColor: "rgba(239, 68, 68, 0.1)",
+              border: "1px solid rgba(239, 68, 68, 0.2)",
+              borderRadius: "var(--radius-md)",
+              color: "var(--error)",
+              fontSize: "12px",
+              display: "flex",
+              alignItems: "flex-start",
+              gap: "8px",
+              marginBottom: "8px",
+            }}
+          >
+            <AlertCircle size={14} style={{ marginTop: "2px", flexShrink: 0 }} />
+            <span>{error}</span>
+          </div>
+        )}
         {isUpscaleActive ? (
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             <button
