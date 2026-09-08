@@ -2,6 +2,16 @@
 
 All notable changes to Snap will be documented in this file.
 
+## 0.7.2 - September 7, 2026
+
+### 🐛 Fixes
+* Fixed Smart Selection cutouts keeping a haze of the original background. The decoder mask was mapped through a sigmoid, so every slightly-negative background pixel kept some alpha instead of going fully transparent. The mask is now upsampled in logit space and thresholded at SAM's decision boundary with a narrow anti-aliased edge.
+
+## 0.7.1 - September 7, 2026
+
+### 🐛 Fixes
+* Fixed the tool sidebar tab row overflowing its container, which clipped the BG Removal tab against the right edge. Tab columns now respect the sidebar width and icons no longer shrink.
+
 ## 0.7.0 - September 7, 2026
 
 ### ✨ Smart Selection

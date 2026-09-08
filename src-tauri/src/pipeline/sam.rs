@@ -372,26 +372,50 @@ impl SamEngine {
         let mask_stride = 256 * 256;
         let best_mask_offset = best_idx * mask_stride;
 
-        // Build valid sub-mask with sigmoid probabilities
-        let mut sub_mask = GrayImage::new(valid_w, valid_h);
+        // Collect the raw logits for the valid (unpadded) subregion.
+        let mut logits = vec![0.0f32; (valid_w as usize) * (valid_h as usize)];
         for y in 0..valid_h {
             for x in 0..valid_w {
                 let idx = best_mask_offset + (y as usize * 256 + x as usize);
-                let logit = mask_slice.get(idx).copied().unwrap_or(0.0);
-                // Sigmoid for clean anti-aliasing
-                let prob = 1.0 / (1.0 + (-logit).exp());
-                let byte_val = (prob.clamp(0.0, 1.0) * 255.0).round() as u8;
-                sub_mask.put_pixel(x, y, Luma([byte_val]));
+                logits[y as usize * valid_w as usize + x as usize] =
+                    mask_slice.get(idx).copied().unwrap_or(0.0);
             }
         }
 
-        // Resize sub_mask back to original image dimensions
-        let full_mask = image::imageops::resize(
-            &sub_mask,
-            cached.orig_w,
-            cached.orig_h,
-            image::imageops::FilterType::Triangle,
-        );
+        // Upsample the logits bilinearly, then convert to alpha with a narrow ramp
+        // centred on SAM's decision boundary (logit 0). A plain sigmoid leaves every
+        // slightly-negative background pixel partly opaque, which shows up as a haze of
+        // the original background across the whole cutout. Thresholding in logit space
+        // keeps the background fully transparent while still anti-aliasing the edge.
+        const EDGE_SHARPNESS: f32 = 4.0;
+        let mut full_mask = GrayImage::new(cached.orig_w, cached.orig_h);
+        let sx = valid_w as f32 / cached.orig_w as f32;
+        let sy = valid_h as f32 / cached.orig_h as f32;
+        let max_x_idx = (valid_w - 1) as f32;
+        let max_y_idx = (valid_h - 1) as f32;
+
+        for y in 0..cached.orig_h {
+            let fy = ((y as f32 + 0.5) * sy - 0.5).clamp(0.0, max_y_idx);
+            let y0 = fy.floor() as u32;
+            let y1 = (y0 + 1).min(valid_h - 1);
+            let ty = fy - y0 as f32;
+
+            for x in 0..cached.orig_w {
+                let fx = ((x as f32 + 0.5) * sx - 0.5).clamp(0.0, max_x_idx);
+                let x0 = fx.floor() as u32;
+                let x1 = (x0 + 1).min(valid_w - 1);
+                let tx = fx - x0 as f32;
+
+                let row0 = y0 as usize * valid_w as usize;
+                let row1 = y1 as usize * valid_w as usize;
+                let top = logits[row0 + x0 as usize] * (1.0 - tx) + logits[row0 + x1 as usize] * tx;
+                let bottom = logits[row1 + x0 as usize] * (1.0 - tx) + logits[row1 + x1 as usize] * tx;
+                let logit = top * (1.0 - ty) + bottom * ty;
+
+                let alpha = (logit * EDGE_SHARPNESS + 0.5).clamp(0.0, 1.0);
+                full_mask.put_pixel(x, y, Luma([(alpha * 255.0).round() as u8]));
+            }
+        }
 
         // Compute bounding box around foreground (pixels > 128)
         let mut min_x = u32::MAX;

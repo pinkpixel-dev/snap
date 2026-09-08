@@ -284,3 +284,52 @@ fn test_sam_inference_end_to_end() {
     let center_val = mask.get_pixel(50, 50)[0];
     assert!(center_val > 100, "Center pixel should be segmented: {}", center_val);
 }
+
+#[test]
+fn test_sam_mask_background_is_fully_transparent() {
+    if !sam::SamEngine::is_model_ready() {
+        eprintln!("SlimSAM models not downloaded; skipping mask threshold test");
+        return;
+    }
+    use image::{DynamicImage, Rgba, RgbaImage};
+    let (w, h) = (300u32, 340u32);
+    let radius = 90i32;
+    let (cx, cy) = (150i32, 170i32);
+    let mut img = RgbaImage::new(w, h);
+    for y in 0..h {
+        for x in 0..w {
+            let dx = x as i32 - cx;
+            let dy = y as i32 - cy;
+            if dx * dx + dy * dy < radius * radius {
+                img.put_pixel(x, y, Rgba([15, 15, 18, 255]));
+            } else {
+                img.put_pixel(x, y, Rgba([40, 220, 40, 255]));
+            }
+        }
+    }
+
+    let mut cached = sam::SamEngine::encode_image(&DynamicImage::ImageRgba8(img), "threshold_test")
+        .expect("encode_image failed");
+    let points = vec![crate::models::PromptPoint { x: 0.5, y: 0.5, label: 1 }];
+    sam::SamEngine::decode_mask(&mut cached, &points).expect("decode_mask failed");
+    let mask = cached.last_mask.as_ref().unwrap();
+
+    // Well outside the subject the mask must be exactly zero. Mapping the decoder
+    // logits through a plain sigmoid instead of thresholding leaves a few units of
+    // alpha here, which shows up as the original background hazing through a cutout.
+    let margin = radius + 25;
+    let mut leaked = 0u32;
+    for y in 0..h {
+        for x in 0..w {
+            let dx = x as i32 - cx;
+            let dy = y as i32 - cy;
+            if dx * dx + dy * dy > margin * margin && mask.get_pixel(x, y)[0] != 0 {
+                leaked += 1;
+            }
+        }
+    }
+    assert_eq!(leaked, 0, "background pixels retained alpha: {}", leaked);
+
+    // The subject must still be fully opaque, not just partially selected.
+    assert_eq!(mask.get_pixel(cx as u32, cy as u32)[0], 255);
+}
