@@ -32,7 +32,7 @@ export const Header: React.FC = () => {
   return (
     <header className="app-header">
       <div className="header-brand">
-        <img src="/icon.png" alt="Snap Logo" className="header-brand-icon" onError={(e) => {
+        <img src="/logo.png" alt="Snap Logo" className="header-brand-icon" onError={(e) => {
           // fallback if root icon not in public
           (e.target as HTMLElement).style.display = "none";
         }} />

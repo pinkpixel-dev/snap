@@ -122,18 +122,18 @@ html, body, #root {
 }
 
 .header-brand-icon {
-  width: 20px;
-  height: 20px;
+  width: 23px;
+  height: 23px;
   border-radius: var(--radius-sm);
   object-fit: cover;
 }
 
 .version-badge {
-  font-size: 11px;
+  font-size: 10px;
   font-family: var(--font-mono);
   color: var(--text-muted);
   background-color: var(--bg-elevated);
-  padding: 2px 6px;
+  padding: 2px 4px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border-subtle);
 }
