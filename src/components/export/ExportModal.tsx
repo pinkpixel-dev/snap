@@ -37,6 +37,7 @@ export const ExportModal: React.FC = () => {
     setStripMetadata,
     isCutoutActive,
     isUpscaleActive,
+    isRestoreActive,
     performExport,
     isExporting,
     exportResult,
@@ -532,13 +533,19 @@ export const ExportModal: React.FC = () => {
                   </span>
                 </div>
 
-                {(isCutoutActive || isUpscaleActive) && (
+                {(isCutoutActive || isUpscaleActive || isRestoreActive) && (
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span style={{ color: "var(--text-secondary)" }}>AI State</span>
                     <span style={{ display: "flex", alignItems: "center", gap: "4px", color: "var(--success)", fontSize: "11px", fontWeight: 500 }}>
                       {isCutoutActive && <Scissors size={12} />}
-                      {isUpscaleActive && <Sparkles size={12} />}
-                      <span>{isCutoutActive ? "Cutout Applied (Fast Export)" : "Upscaled (Fast Export)"}</span>
+                      {(isUpscaleActive || isRestoreActive) && <Sparkles size={12} />}
+                      <span>
+                        {isCutoutActive
+                          ? "Cutout Applied (Fast Export)"
+                          : isUpscaleActive
+                            ? "Upscaled (Fast Export)"
+                            : "Restored (Fast Export)"}
+                      </span>
                     </span>
                   </div>
                 )}

@@ -24,6 +24,7 @@ Opening heavy editors like Photoshop, GIMP, or Figma just to do those quick adju
 * **Format conversion & compression:** Convert between WebP, PNG, and JPEG with live quality controls and before/after file size feedback.
 * **On-device AI background removal:** Isolate subjects and create transparent cutouts locally using RMBG 2.0, Lucida ONNX, BiRefNet HR Matting (2048×2048), or FeyNobg ONNX, accelerated via NVIDIA CUDA GPU with automatic CPU fallback.
 * **AI neural upscaling:** Enhance image resolution up to 4× using Real-ESRGAN with GPU acceleration and memory-bounded tiled processing.
+* **AI image restoration:** Repair noisy, blurry, and artifact-heavy images with NAFNet and SCUNet. Three tasks, each with its own model: general restore, denoise, and deblur. Runs on the same tiled, GPU-accelerated pipeline as upscaling.
 * **Metadata privacy:** Inspect EXIF information and strip metadata with one click upon export.
 * **Live comparison:** Toggle between your working edits and the original image in real time.
 * **Safe exports:** Snap preserves your original image files and saves your edits to a separate destination.

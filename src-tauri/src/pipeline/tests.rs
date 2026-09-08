@@ -333,3 +333,78 @@ fn test_sam_mask_background_is_fully_transparent() {
     // The subject must still be fully opaque, not just partially selected.
     assert_eq!(mask.get_pixel(cx as u32, cy as u32)[0], 255);
 }
+
+#[test]
+fn test_restore_model_specs() {
+    let reds = restore::RestoreEngine::get_model(Some("nafnet-reds"));
+    assert_eq!(reds.spec.id, "nafnet-reds");
+    assert_eq!(reds.spec.filename, "NAFNet-REDS-width64.onnx");
+    assert_eq!(reds.tile_size, 256);
+
+    let gopro = restore::RestoreEngine::get_model(Some("nafnet-gopro"));
+    assert_eq!(gopro.spec.id, "nafnet-gopro");
+    assert_eq!(gopro.spec.filename, "NAFNet-GoPro-width64.onnx");
+
+    let sidd = restore::RestoreEngine::get_model(Some("nafnet-sidd"));
+    assert_eq!(sidd.spec.id, "nafnet-sidd");
+    assert_eq!(sidd.spec.filename, "NAFNet-SIDD-width64.onnx");
+
+    let gan = restore::RestoreEngine::get_model(Some("scunet-gan"));
+    assert_eq!(gan.spec.id, "scunet-gan");
+    assert_eq!(gan.spec.filename, "SCUNet-GAN.onnx");
+    assert_eq!(gan.tile_size, 128);
+
+    let psnr = restore::RestoreEngine::get_model(Some("scunet-psnr"));
+    assert_eq!(psnr.spec.id, "scunet-psnr");
+    assert_eq!(psnr.spec.filename, "SCUNet-PSNR.onnx");
+
+    let default_model = restore::RestoreEngine::get_model(None);
+    assert_eq!(default_model.spec.id, "nafnet-reds");
+}
+
+/// Real inference against a cached model. Ignored by default because it needs the
+/// SCUNet weights on disk; run with `cargo test -- --ignored restore_scunet_roundtrip`.
+#[test]
+#[ignore]
+fn restore_scunet_roundtrip() {
+    if !restore::RestoreEngine::is_model_ready(Some("scunet-gan")) {
+        panic!("SCUNet-GAN.onnx is not cached; download it before running this test");
+    }
+
+    // Non-multiple-of-32 dimensions on purpose, and larger than one 128px tile,
+    // so both the padding path and the tiling path are exercised.
+    let mut src = image::RgbaImage::new(200, 150);
+    for (x, y, px) in src.enumerate_pixels_mut() {
+        let noise = ((x * 7 + y * 13) % 61) as u8;
+        *px = image::Rgba([(x % 256) as u8, (y % 256) as u8, noise, 128]);
+    }
+    let input = image::DynamicImage::ImageRgba8(src.clone());
+
+    let out = restore::RestoreEngine::restore(&input, Some("scunet-gan")).expect("restore failed");
+    assert_eq!(out.dimensions(), (200, 150));
+
+    // Alpha must survive untouched, and the RGB must actually have changed.
+    let out_rgba = out.to_rgba8();
+    assert!(out_rgba.pixels().all(|p| p[3] == 128));
+    assert!(out_rgba.pixels().zip(src.pixels()).any(|(a, b)| a[0] != b[0] || a[1] != b[1] || a[2] != b[2]));
+}
+
+/// Same real-inference check for the NAFNet architecture, which pads to a
+/// different multiple than SCUNet. Ignored by default; needs cached weights.
+#[test]
+#[ignore]
+fn restore_nafnet_roundtrip() {
+    if !restore::RestoreEngine::is_model_ready(Some("nafnet-reds")) {
+        panic!("NAFNet-REDS-width64.onnx is not cached; download it before running this test");
+    }
+
+    let mut src = image::RgbImage::new(300, 210);
+    for (x, y, px) in src.enumerate_pixels_mut() {
+        let noise = ((x * 11 + y * 5) % 47) as u8;
+        *px = image::Rgb([(x % 256) as u8, (y % 256) as u8, noise]);
+    }
+    let input = image::DynamicImage::ImageRgb8(src);
+
+    let out = restore::RestoreEngine::restore(&input, Some("nafnet-reds")).expect("restore failed");
+    assert_eq!(out.dimensions(), (300, 210));
+}

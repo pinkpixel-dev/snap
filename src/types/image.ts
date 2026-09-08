@@ -70,6 +70,101 @@ export const UPSCALE_MODELS: UpscaleModelInfo[] = [
   },
 ];
 
+export type RestoreTaskType = "restore" | "denoise" | "deblur";
+
+export type RestoreModelType =
+  | "nafnet-reds"
+  | "nafnet-gopro"
+  | "nafnet-sidd"
+  | "scunet-gan"
+  | "scunet-psnr";
+
+export interface RestoreTaskInfo {
+  id: RestoreTaskType;
+  label: string;
+  description: string;
+  defaultModel: RestoreModelType;
+}
+
+export const RESTORE_TASKS: RestoreTaskInfo[] = [
+  {
+    id: "restore",
+    label: "Restore",
+    description: "General cleanup for compression artifacts, banding, and worn detail.",
+    defaultModel: "nafnet-reds",
+  },
+  {
+    id: "denoise",
+    label: "Denoise",
+    description: "Removes sensor noise and grain while holding on to fine texture.",
+    defaultModel: "scunet-gan",
+  },
+  {
+    id: "deblur",
+    label: "Deblur",
+    description: "Recovers detail lost to motion blur and soft focus.",
+    defaultModel: "nafnet-gopro",
+  },
+];
+
+export interface RestoreModelInfo {
+  id: RestoreModelType;
+  task: RestoreTaskType;
+  name: string;
+  shortName: string;
+  tag: string;
+  size: string;
+  description: string;
+}
+
+export const RESTORE_MODELS: RestoreModelInfo[] = [
+  {
+    id: "nafnet-reds",
+    task: "restore",
+    name: "NAFNet REDS",
+    shortName: "NAFNet REDS",
+    tag: "General",
+    size: "~275 MB",
+    description: "Trained on the REDS video restoration set. The best all-round choice when you are not sure what is wrong with the image.",
+  },
+  {
+    id: "nafnet-gopro",
+    task: "deblur",
+    name: "NAFNet GoPro",
+    shortName: "NAFNet GoPro",
+    tag: "Motion blur",
+    size: "~275 MB",
+    description: "Trained on the GoPro deblurring set. Targets camera shake and motion smear rather than noise.",
+  },
+  {
+    id: "scunet-gan",
+    task: "denoise",
+    name: "SCUNet GAN",
+    shortName: "SCUNet GAN",
+    tag: "Sharper",
+    size: "~91 MB",
+    description: "Perceptual denoising. Leans toward a crisp, natural-looking result and is the fastest model here.",
+  },
+  {
+    id: "scunet-psnr",
+    task: "denoise",
+    name: "SCUNet PSNR",
+    shortName: "SCUNet PSNR",
+    tag: "Safer",
+    size: "~91 MB",
+    description: "Fidelity-tuned denoising. Softer output than the GAN variant, with less risk of invented detail.",
+  },
+  {
+    id: "nafnet-sidd",
+    task: "denoise",
+    name: "NAFNet SIDD",
+    shortName: "NAFNet SIDD",
+    tag: "Heavy",
+    size: "~468 MB",
+    description: "Trained on real smartphone sensor noise. Strongest denoiser of the three, and the slowest.",
+  },
+];
+
 export type CutoutModelType = "rmbg-2.0" | "lucida-onnx" | "birefnet-hr" | "fey-nobg";
 
 export interface CutoutModelInfo {

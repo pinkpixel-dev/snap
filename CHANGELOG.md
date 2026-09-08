@@ -2,6 +2,21 @@
 
 All notable changes to Snap will be documented in this file.
 
+## 0.8.0 - September 7, 2026
+
+### ✨ Image Restoration
+* Added a Restore tool that repairs noisy, blurry, and artifact-heavy images locally with NAFNet and SCUNet, using the same CUDA-accelerated ONNX pipeline as upscaling with automatic CPU fallback.
+* Added a three-way task selector (Restore, Denoise, Deblur). Picking a task selects its default model and filters the model list to that task.
+* Added five downloadable models from `deepghs/image_restoration`: NAFNet REDS (~275 MB), NAFNet GoPro (~275 MB), NAFNet SIDD (~468 MB), SCUNet GAN (~91 MB), and SCUNet PSNR (~91 MB). Each downloads on first use and is cached offline.
+* Restored images get the same draggable before/after split preview as upscaling, and chain into the upscaler when both are active.
+* Exporting a restored image reuses the already-processed buffer instead of re-running inference.
+
+### 🧹 Maintenance
+* Extracted model download and cache handling into `src-tauri/src/pipeline/model_cache.rs`, shared by the upscale and restore engines.
+
+### 🏷️ Versioning
+* Bumped version to 0.8.0 across package.json, package-lock.json, Cargo.toml, and tauri.conf.json. This also realigns Cargo.toml and tauri.conf.json, which had been left at 0.7.0 while package.json moved to 0.7.2.
+
 ## 0.7.2 - September 7, 2026
 
 ### 🐛 Fixes

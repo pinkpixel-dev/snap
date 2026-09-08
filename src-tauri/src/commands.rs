@@ -120,6 +120,35 @@ pub async fn upscale_image(
 }
 
 #[tauri::command]
+pub async fn check_restore_model(model_id: Option<String>) -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(move || Pipeline::is_restore_model_ready(model_id.as_deref()))
+        .await
+        .map_err(|e| format!("Task join error: {}", e))
+}
+
+#[tauri::command]
+pub async fn download_restore_model(model_id: Option<String>) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        Pipeline::download_restore_model(model_id.as_deref())
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}
+
+#[tauri::command]
+pub async fn restore_image(
+    source: String,
+    model_id: Option<String>,
+    max_dim: Option<u32>,
+) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        Pipeline::restore_preview_data_url(&source, model_id.as_deref(), max_dim)
+    })
+    .await
+    .map_err(|e| format!("Task join error: {}", e))?
+}
+
+#[tauri::command]
 pub async fn check_sam_model() -> Result<bool, String> {
     tauri::async_runtime::spawn_blocking(move || Pipeline::is_sam_model_ready())
         .await

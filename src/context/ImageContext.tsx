@@ -10,6 +10,10 @@ import {
   CutoutModelType,
   CUTOUT_MODELS,
   UpscaleModelType,
+  RestoreModelType,
+  RestoreTaskType,
+  RESTORE_TASKS,
+  RESTORE_MODELS,
 } from "../types/image";
 
 interface ImageContextType {
@@ -37,8 +41,8 @@ interface ImageContextType {
   stripMetadata: boolean;
 
   // View State
-  activeTab: "crop" | "resize" | "upscale" | "cutout" | "smart-select";
-  setActiveTab: (tab: "crop" | "resize" | "upscale" | "cutout" | "smart-select") => void;
+  activeTab: "crop" | "resize" | "upscale" | "restore" | "cutout" | "smart-select";
+  setActiveTab: (tab: "crop" | "resize" | "upscale" | "restore" | "cutout" | "smart-select") => void;
   showCheckerboard: boolean;
   setShowCheckerboard: (val: boolean | ((prev: boolean) => boolean)) => void;
   showBeforeAfter: boolean;
@@ -76,6 +80,20 @@ interface ImageContextType {
   checkUpscaleModelStatus: (modelId?: UpscaleModelType) => Promise<boolean>;
   applyUpscale: () => Promise<void>;
   restoreUpscale: () => void;
+
+  // Restore State
+  isRestoreActive: boolean;
+  isRestoreLoading: boolean;
+  restoreProgress: string | null;
+  restoreDataUrl: string | null;
+  isRestoreModelReady: boolean;
+  restoreTask: RestoreTaskType;
+  setRestoreTask: (task: RestoreTaskType) => void;
+  restoreModel: RestoreModelType;
+  setRestoreModel: (model: RestoreModelType) => void;
+  checkRestoreModelStatus: (modelId?: RestoreModelType) => Promise<boolean>;
+  applyRestore: () => Promise<void>;
+  revertRestore: () => void;
 
   // Settings State
   isSettingsModalOpen: boolean;
@@ -145,7 +163,7 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [stripMetadata, setStripMetadata] = useState(true);
 
   // View state
-  const [activeTab, setActiveTab] = useState<"crop" | "resize" | "upscale" | "cutout" | "smart-select">("crop");
+  const [activeTab, setActiveTab] = useState<"crop" | "resize" | "upscale" | "restore" | "cutout" | "smart-select">("crop");
   const [showCheckerboard, setShowCheckerboard] = useState(false);
   const [showBeforeAfter, setShowBeforeAfter] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -188,6 +206,27 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [upscaleDataUrl, setUpscaleDataUrl] = useState<string | null>(null);
   const [isUpscaleModelReady, setIsUpscaleModelReady] = useState(false);
   const [splitSliderPos, setSplitSliderPos] = useState(50);
+
+  // Restore state
+  const [restoreTask, setRestoreTaskState] = useState<RestoreTaskType>(() => {
+    const saved = localStorage.getItem("snap_restore_task");
+    if (saved && RESTORE_TASKS.some((t) => t.id === saved)) {
+      return saved as RestoreTaskType;
+    }
+    return "restore";
+  });
+  const [restoreModel, setRestoreModelState] = useState<RestoreModelType>(() => {
+    const saved = localStorage.getItem("snap_restore_model");
+    if (saved && RESTORE_MODELS.some((m) => m.id === saved)) {
+      return saved as RestoreModelType;
+    }
+    return "nafnet-reds";
+  });
+  const [isRestoreActive, setIsRestoreActive] = useState(false);
+  const [isRestoreLoading, setIsRestoreLoading] = useState(false);
+  const [restoreProgress, setRestoreProgress] = useState<string | null>(null);
+  const [restoreDataUrl, setRestoreDataUrl] = useState<string | null>(null);
+  const [isRestoreModelReady, setIsRestoreModelReady] = useState(false);
 
   // Settings modal state
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
@@ -303,7 +342,9 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [upscaleModel, checkUpscaleModelStatus]);
 
   const applyUpscale = useCallback(async () => {
-    const source = isCutoutActive && cutoutDataUrl ? cutoutDataUrl : (imagePath || imageDataUrl);
+    const source = isRestoreActive && restoreDataUrl
+      ? restoreDataUrl
+      : (isCutoutActive && cutoutDataUrl ? cutoutDataUrl : (imagePath || imageDataUrl));
     if (!source) return;
 
     setIsUpscaleLoading(true);
@@ -338,10 +379,80 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsUpscaleLoading(false);
       setUpscaleProgress(null);
     }
-  }, [imagePath, imageDataUrl, isCutoutActive, cutoutDataUrl, upscaleModel, upscaleScale]);
+  }, [imagePath, imageDataUrl, isCutoutActive, cutoutDataUrl, isRestoreActive, restoreDataUrl, upscaleModel, upscaleScale]);
 
   const restoreUpscale = useCallback(() => {
     setIsUpscaleActive(false);
+  }, []);
+
+  // Switching task moves the selection to that task's default model, so the two never disagree.
+  const setRestoreTask = useCallback((task: RestoreTaskType) => {
+    setRestoreTaskState(task);
+    localStorage.setItem("snap_restore_task", task);
+    const taskInfo = RESTORE_TASKS.find((t) => t.id === task);
+    if (taskInfo) {
+      setRestoreModelState(taskInfo.defaultModel);
+      localStorage.setItem("snap_restore_model", taskInfo.defaultModel);
+    }
+  }, []);
+
+  const setRestoreModel = useCallback((model: RestoreModelType) => {
+    setRestoreModelState(model);
+    localStorage.setItem("snap_restore_model", model);
+  }, []);
+
+  const checkRestoreModelStatus = useCallback(async (modelId?: RestoreModelType): Promise<boolean> => {
+    try {
+      const targetModel = modelId || restoreModel;
+      const ready = await invoke<boolean>("check_restore_model", { modelId: targetModel });
+      setIsRestoreModelReady(ready);
+      return ready;
+    } catch {
+      setIsRestoreModelReady(false);
+      return false;
+    }
+  }, [restoreModel]);
+
+  useEffect(() => {
+    checkRestoreModelStatus(restoreModel);
+  }, [restoreModel, checkRestoreModelStatus]);
+
+  const applyRestore = useCallback(async () => {
+    const source = isCutoutActive && cutoutDataUrl ? cutoutDataUrl : (imagePath || imageDataUrl);
+    if (!source) return;
+
+    const modelInfo = RESTORE_MODELS.find((m) => m.id === restoreModel);
+    setIsRestoreLoading(true);
+    setError(null);
+    try {
+      const ready = await invoke<boolean>("check_restore_model", { modelId: restoreModel });
+      if (!ready) {
+        setRestoreProgress(`Downloading ${modelInfo?.name ?? restoreModel} (${modelInfo?.size ?? "large file"})...`);
+        await invoke("download_restore_model", { modelId: restoreModel });
+        setIsRestoreModelReady(true);
+      }
+
+      setRestoreProgress(`Running ${modelInfo?.name ?? restoreModel}...`);
+      const resultDataUrl = await invoke<string>("restore_image", {
+        source,
+        modelId: restoreModel,
+        maxDim: 2048,
+      });
+
+      setRestoreDataUrl(resultDataUrl);
+      setIsRestoreActive(true);
+      setSplitSliderPos(50);
+    } catch (err) {
+      console.error("Restoration error:", err);
+      setError(typeof err === "string" ? err : "Failed to restore image");
+    } finally {
+      setIsRestoreLoading(false);
+      setRestoreProgress(null);
+    }
+  }, [imagePath, imageDataUrl, isCutoutActive, cutoutDataUrl, restoreModel]);
+
+  const revertRestore = useCallback(() => {
+    setIsRestoreActive(false);
   }, []);
 
   const openExportModal = useCallback(() => {
@@ -372,6 +483,9 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsUpscaleActive(false);
     setUpscaleDataUrl(null);
     setUpscaleProgress(null);
+    setIsRestoreActive(false);
+    setRestoreDataUrl(null);
+    setRestoreProgress(null);
   }, [metadata]);
 
   const clearImage = useCallback(() => {
@@ -393,6 +507,9 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setIsUpscaleActive(false);
     setUpscaleDataUrl(null);
     setUpscaleProgress(null);
+    setIsRestoreActive(false);
+    setRestoreDataUrl(null);
+    setRestoreProgress(null);
   }, []);
 
   const loadImageFromPath = useCallback(async (path: string) => {
@@ -429,6 +546,9 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsUpscaleActive(false);
       setUpscaleDataUrl(null);
       setUpscaleProgress(null);
+      setIsRestoreActive(false);
+      setRestoreDataUrl(null);
+      setRestoreProgress(null);
 
       // Set initial format intelligently (if source is png, stay png; else webp)
       const lowerFormat = meta.format.toLowerCase();
@@ -476,6 +596,9 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         setIsUpscaleActive(false);
         setUpscaleDataUrl(null);
         setUpscaleProgress(null);
+        setIsRestoreActive(false);
+        setRestoreDataUrl(null);
+        setRestoreProgress(null);
         setIsLoading(false);
       };
       img.onerror = () => {
@@ -586,6 +709,8 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       // Prefer already-processed in-memory image buffers to prevent re-running 60s CPU neural inference
       if (isUpscaleActive && upscaleDataUrl) {
         source = upscaleDataUrl;
+      } else if (isRestoreActive && restoreDataUrl) {
+        source = restoreDataUrl;
       } else if (isCutoutActive && cutoutDataUrl) {
         source = cutoutDataUrl;
       } else {
@@ -661,6 +786,8 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       upscaleDataUrl,
       upscaleScale,
       upscaleModel,
+      isRestoreActive,
+      restoreDataUrl,
     ]
   );
 
@@ -721,6 +848,18 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         checkUpscaleModelStatus,
         applyUpscale,
         restoreUpscale,
+        isRestoreActive,
+        isRestoreLoading,
+        restoreProgress,
+        restoreDataUrl,
+        isRestoreModelReady,
+        restoreTask,
+        setRestoreTask,
+        restoreModel,
+        setRestoreModel,
+        checkRestoreModelStatus,
+        applyRestore,
+        revertRestore,
         isSettingsModalOpen,
         openSettingsModal,
         closeSettingsModal,

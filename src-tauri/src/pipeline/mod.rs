@@ -5,7 +5,9 @@ use image::{DynamicImage, GenericImageView, ImageEncoder, ImageFormat};
 use crate::models::{CropSettings, ExportResult, ExportSettings, ImageMetadata, ResizeSettings};
 
 pub mod cutout;
+pub mod model_cache;
 pub mod upscale;
+pub mod restore;
 pub mod sam;
 
 pub struct Pipeline;
@@ -494,6 +496,44 @@ impl Pipeline {
         let mut buffer = Cursor::new(Vec::new());
         upscaled_img.write_to(&mut buffer, ImageFormat::Png)
             .map_err(|e| format!("Failed to encode upscaled PNG: {}", e))?;
+
+        let base64_str = base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            buffer.get_ref(),
+        );
+
+        Ok(format!("data:image/png;base64,{}", base64_str))
+    }
+
+    pub fn is_restore_model_ready(model_id: Option<&str>) -> bool {
+        restore::RestoreEngine::is_model_ready(model_id)
+    }
+
+    pub fn download_restore_model(model_id: Option<&str>) -> Result<(), String> {
+        restore::RestoreEngine::ensure_model(model_id).map(|_| ())
+    }
+
+    pub fn restore_preview_data_url(
+        source: &str,
+        model_id: Option<&str>,
+        max_dim: Option<u32>,
+    ) -> Result<String, String> {
+        let mut img = Self::load_image(source)?;
+        let max_d = max_dim.unwrap_or(2048);
+
+        let (w, h) = img.dimensions();
+        if w > max_d || h > max_d {
+            let scale_factor = (max_d as f64) / ((w.max(h)) as f64);
+            let target_w = ((w as f64) * scale_factor).round().max(1.0) as u32;
+            let target_h = ((h as f64) * scale_factor).round().max(1.0) as u32;
+            img = img.resize_exact(target_w, target_h, image::imageops::FilterType::Lanczos3);
+        }
+
+        let restored_img = restore::RestoreEngine::restore(&img, model_id)?;
+
+        let mut buffer = Cursor::new(Vec::new());
+        restored_img.write_to(&mut buffer, ImageFormat::Png)
+            .map_err(|e| format!("Failed to encode restored PNG: {}", e))?;
 
         let base64_str = base64::Engine::encode(
             &base64::engine::general_purpose::STANDARD,
