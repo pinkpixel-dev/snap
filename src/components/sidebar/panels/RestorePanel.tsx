@@ -328,12 +328,54 @@ export const RestorePanel: React.FC = () => {
           </div>
         )}
 
-        {isRestoreActive ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={applyRestore}
+          disabled={!hasImage || isRestoreLoading}
+          style={{
+            width: "100%",
+            height: "40px",
+            justifyContent: "center",
+            fontSize: "13px",
+            fontWeight: 600,
+          }}
+        >
+          {isRestoreLoading ? (
+            <>
+              <Loader2 size={16} className="spinner" style={{ marginRight: "8px" }} />
+              <span>{restoreProgress || "Restoring..."}</span>
+            </>
+          ) : (
+            <>
+              <Wrench size={16} style={{ marginRight: "8px" }} />
+              <span>
+                {isRestoreActive
+                  ? `Run ${currentTaskInfo.label} on Result`
+                  : `${currentTaskInfo.label} Image`}
+              </span>
+            </>
+          )}
+        </button>
+
+        {isRestoreActive && (
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "8px" }}>
+            <p
+              style={{
+                fontSize: "11px",
+                color: "var(--text-muted)",
+                lineHeight: 1.4,
+                margin: 0,
+              }}
+            >
+              Each run stacks on the current result, so you can denoise a restored image or deblur a denoised one. Revert to start over from the original.
+            </p>
+
             <button
               type="button"
               className="btn btn-secondary"
               onClick={revertRestore}
+              disabled={isRestoreLoading}
               style={{
                 width: "100%",
                 height: "38px",
@@ -399,32 +441,6 @@ export const RestorePanel: React.FC = () => {
               </div>
             </div>
           </div>
-        ) : (
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={applyRestore}
-            disabled={!hasImage || isRestoreLoading}
-            style={{
-              width: "100%",
-              height: "40px",
-              justifyContent: "center",
-              fontSize: "13px",
-              fontWeight: 600,
-            }}
-          >
-            {isRestoreLoading ? (
-              <>
-                <Loader2 size={16} className="spinner" style={{ marginRight: "8px" }} />
-                <span>{restoreProgress || "Restoring..."}</span>
-              </>
-            ) : (
-              <>
-                <Wrench size={16} style={{ marginRight: "8px" }} />
-                <span>{currentTaskInfo.label} Image</span>
-              </>
-            )}
-          </button>
         )}
       </div>
     </div>

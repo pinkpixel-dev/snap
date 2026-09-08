@@ -8,6 +8,7 @@ All notable changes to Snap will be documented in this file.
 * Added a Restore tool that repairs noisy, blurry, and artifact-heavy images locally with NAFNet and SCUNet, using the same CUDA-accelerated ONNX pipeline as upscaling with automatic CPU fallback.
 * Added a three-way task selector (Restore, Denoise, Deblur). Picking a task selects its default model and filters the model list to that task.
 * Added five downloadable models from `deepghs/image_restoration`: NAFNet REDS (~275 MB), NAFNet GoPro (~275 MB), NAFNet SIDD (~468 MB), SCUNet GAN (~91 MB), and SCUNet PSNR (~91 MB). Each downloads on first use and is cached offline.
+* Restoration passes stack. The run button stays available after a pass, so you can denoise a restored image or deblur a denoised one, and Revert to Original starts over from the source image.
 * Restored images get the same draggable before/after split preview as upscaling, and chain into the upscaler when both are active.
 * Exporting a restored image reuses the already-processed buffer instead of re-running inference.
 

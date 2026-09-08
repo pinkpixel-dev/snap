@@ -418,7 +418,11 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [restoreModel, checkRestoreModelStatus]);
 
   const applyRestore = useCallback(async () => {
-    const source = isCutoutActive && cutoutDataUrl ? cutoutDataUrl : (imagePath || imageDataUrl);
+    // Passes stack, so running Denoise after Restore works on the already-restored
+    // buffer rather than starting over from the original image.
+    const source = isRestoreActive && restoreDataUrl
+      ? restoreDataUrl
+      : (isCutoutActive && cutoutDataUrl ? cutoutDataUrl : (imagePath || imageDataUrl));
     if (!source) return;
 
     const modelInfo = RESTORE_MODELS.find((m) => m.id === restoreModel);
@@ -449,10 +453,11 @@ export const ImageProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       setIsRestoreLoading(false);
       setRestoreProgress(null);
     }
-  }, [imagePath, imageDataUrl, isCutoutActive, cutoutDataUrl, restoreModel]);
+  }, [imagePath, imageDataUrl, isCutoutActive, cutoutDataUrl, isRestoreActive, restoreDataUrl, restoreModel]);
 
   const revertRestore = useCallback(() => {
     setIsRestoreActive(false);
+    setRestoreDataUrl(null);
   }, []);
 
   const openExportModal = useCallback(() => {
